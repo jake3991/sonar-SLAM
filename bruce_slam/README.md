@@ -11,20 +11,20 @@ As the vehicle moves along the trajectory, the dead reckoning (odometry) node pr
 This node subscribes to sonar images and outputs an IN PLANE point cloud. In order to convert the image to a point cloud, first we must idenity contacts in the sonar image. Here we use constant-false-alarm-rate (CFAR) which is written in C++ and built using pybind11. CFAR is govenered by the following parameters in config/feature.yaml. We reccomend this as the primary tuning point in this whole system. These points will be used as a basis for ICP scan matching, so if they are poor, your results will be poor. 
 
 CFAR:
-  Ntc: number of training cells
-  Ngc: number of guard cells
-  Pfa: false alarm rate
-  rank:matrix rank
-  alg: method of CFAR, see cfar.cpp for options. SOCA is best.
+ - Ntc: number of training cells
+ - Ngc: number of guard cells
+ - Pfa: false alarm rate
+ - rank:matrix rank
+ - alg: method of CFAR, see cfar.cpp for options. SOCA is best.
 
 After contacts are identified, they must be converted to a point cloud. This is done by using the knowledge of the sonar image geometry provided in the sonar image message. Once we have converted from pixels to meters, we apply some simple point cloud processing. In this case voxel downsampling and radius outlier filtering. See below. 
 
 filter:
-  threshold: the min CFAR response to be added to the point cloud
-  resolution:  voxel downsampling res
-  radius: outlier rejection radius
-  min_points: outlier rejection min points
-  skip: how often to skip a point cloud, use 1 reccomended do not change
+  - threshold: the min CFAR response to be added to the point cloud
+  - resolution:  voxel downsampling res
+  - radius: outlier rejection radius
+  - min_points: outlier rejection min points
+  - skip: how often to skip a point cloud, use 1 reccomended do not change
 
 Once the cloud is filtered, it is packaged and published with the same timestamp as the incoming sonar image. 
 
