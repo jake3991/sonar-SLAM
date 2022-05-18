@@ -145,16 +145,6 @@ class SLAMNode(SLAM):
         #tf broadcaster to show pose
         self.tf = tf.TransformBroadcaster()
 
-        #service to predict what a future SLAM update might look like
-        '''self.predict_slam_update_srv = rospy.Service(
-            SLAM_PREDICT_SLAM_UPDATE_SERVICE,
-            PredictSLAMUpdate,
-            self.predict_slam_update_handler,)'''
-
-        #get the map
-        '''self.get_map_client = rospy.ServiceProxy(
-            MAPPING_GET_MAP_SERVICE, GetOccupancyMap)'''
-
         #cv bridge object
         self.CVbridge = cv_bridge.CvBridge()
 
