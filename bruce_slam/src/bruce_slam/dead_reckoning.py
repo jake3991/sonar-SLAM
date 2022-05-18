@@ -125,7 +125,7 @@ class DeadReckoningNode(object):
             self.imu_yaw0 = rot.yaw()
         
         # Get a rotation matrix
-        rot = gtsam.Rot3.Ypr(rot.yaw() - self.imu_yaw0, rot.pitch(), rot.roll())
+        rot = gtsam.Rot3.Ypr(rot.yaw() - self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 
         # parse the DVL message into an array of velocites
         vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
