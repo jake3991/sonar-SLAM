@@ -8,14 +8,14 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   message_generation
   sensor_msgs
-  sonar_oculus
+  #sonar_oculus
 )
 
 add_message_files(
    FILES
    ISAM2Update.msg
-   keyframe_image.msg
-   posehistory.msg
+   #keyframe_image.msg
+   #posehistory.msg
 )
 
 add_service_files(
@@ -30,7 +30,7 @@ generate_messages(
    geometry_msgs
    nav_msgs
    sensor_msgs
-   sonar_oculus
+   #sonar_oculus
 )
 
 find_package(GTSAM REQUIRED)

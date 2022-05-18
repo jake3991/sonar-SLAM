@@ -6,9 +6,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3")
 find_package(catkin REQUIRED
   rospy
   tf
-  rti_dvl
-  sonar_oculus
-  bar30_depth
+  #rti_dvl
+  #sonar_oculus
+  #bar30_depth
   message_generation
   sensor_msgs
   geometry_msgs

@@ -26,7 +26,7 @@ from visualization_msgs.msg import Marker
 
 # For exploration services
 from bruce_msgs.srv import PredictSLAMUpdate, PredictSLAMUpdateResponse
-from bruce_msgs.msg import ISAM2Update, keyframe_image, posehistory
+from bruce_msgs.msg import ISAM2Update
 from bruce_msgs.srv import GetOccupancyMap, GetOccupancyMapRequest
 
 from bruce_slam.utils.io import *
