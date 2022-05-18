@@ -67,6 +67,9 @@ This runs our offline mode, great for quick testing/tuning of parameters.
 # Configuration
 This SLAM system has many parameters, please read the wiki for an explanation of each parameter. However, we highly recommend using the default parameters as in the config folder. If you are to tune anything if would be the feature extraction node in feature.yaml. 
 
+# Current To Do list
+- Add a gif to the readme to act as a nice landing page
+- enhance some of the cpp documentation for CFAR
 
 # Citation
 If you use this repo please cite the following work. Link to pre-print here: https://arxiv.org/abs/2202.08359
