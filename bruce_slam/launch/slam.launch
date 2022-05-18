@@ -1,7 +1,6 @@
 <launch>
     <arg name="rviz" default="true"/>
     <arg name="enable_slam" default="true"/>
-    <arg name="3d_mapping" default="true"/>
 
     <!-- offline mode -->
     <arg name="file" default=""/>
@@ -24,12 +23,6 @@
     </group>
 
     <!-- online mode -->
-
-    <node if="$(arg 3d_mapping)" pkg="stereo_sonar" name="stereo_sonar" type="stereo_sonar_node.py" output="screen">
-            <rosparam command="load" file="$(find stereo_sonar)/config/match.yaml"/>
-    </node>
-
-
     <group ns="bruce" if="$(eval arg('file') == '')">
         <group ns="slam">
 
