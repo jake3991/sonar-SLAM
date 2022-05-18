@@ -1,0 +1,4 @@
+uint32[] frames
+float32 resolution
+---
+nav_msgs/OccupancyGrid occ

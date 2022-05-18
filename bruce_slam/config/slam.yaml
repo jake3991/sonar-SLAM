@@ -1,0 +1,45 @@
+# how often to add keyframes, this can be varied but between 1 and 4 meters is best
+keyframe_duration: 1.0
+keyframe_translation: 3.0
+keyframe_rotation: deg(30)
+
+# define the noise models
+# x, y, theta in m, m, rad
+prior_sigmas: [0.1, 0.1, 0.01]
+odom_sigmas: [0.2, 0.2, 0.02]
+icp_odom_sigmas: [0.1, 0.1, 0.01]
+
+# pull in the ICP config
+icp_config: $(find bruce_slam)/config/icp.yaml
+
+# Downsample points for ICP/publishing
+point_resolution: 0.5
+
+# Sequential scan matching (SSM)
+ssm:
+  enable: True # is this module enabled?
+  min_points: 50 # the min number of points to try SSM
+  max_translation: 3.0 # the max translation allowed
+  max_rotation: deg(30) # the max rotation allowed
+  target_frames: 3 # the numeber of frames we compare the current frame to 
+
+# Non-sequential scan matching
+nssm:
+  enable: True # is this module enabled?
+  min_st_sep: 8 # the size of the exclusion zone around the most recent keyframe
+  min_points: 50 #min number of points
+  max_translation: 10.0 # max translation allowed
+  max_rotation: deg(60) # max rotation allowed
+  source_frames: 5 # the number of frames to aggratgate when trying a loop closure
+  cov_samples: 30
+
+# the PCM params for rejecting outlier loop closures
+pcm_queue_size: 5 # the sliding window size for PCM
+min_pcm: 2 # the min number of pairwise consistent loop closures
+
+# TODO remove this param
+# Number of samples to compute the probability of
+# successful non-sequential scan matching p(z)
+pz_samples: 0
+# point re-detection rate
+pz_detection_rate: 0.3

@@ -1,0 +1,7 @@
+# Empty request
+
+
+---
+
+nav_msgs/Path path
+string type

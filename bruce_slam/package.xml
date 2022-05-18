@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>bruce_slam</name>
+  <version>0.0.1</version>
+  <description>
+        The BlueROV Underwater SLAM package.
+  </description>
+  <author>Jinkun Wang</author>
+  <maintainer email="jmcconn1@stevens.edu">John McConnell</maintainer>
+  <license>MIT License</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>rospy</depend>
+  <build_depend>libpointmatcher</build_depend>
+  <build_depend>message_generation</build_depend>
+  <exec_depend>gtsam</exec_depend>
+  <exec_depend>rti_dvl</exec_depend>
+  <exec_depend>sonar_oculus</exec_depend>
+  <exec_depend>bar30_depth</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+</package>

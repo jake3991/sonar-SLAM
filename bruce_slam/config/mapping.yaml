@@ -1,0 +1,33 @@
+# map origin
+origin: [-100.0, -100.0]
+# initial size (width, height)
+size: [200.0, 200.0]
+resolution: 0.2
+# map will be incrementally resized
+# when objects exceed current boundary
+inc: 50.0
+
+use_slam_traj: true
+
+###################
+pub_intensity: false
+###################
+
+###################
+pub_occupancy1: true
+hit_prob: 0.8
+miss_prob: 0.3
+inflation_angle: 0.04
+inflation_range: 0.4
+###################
+
+###################
+pub_occupancy2: false
+inflation_radius: 0.5
+###################
+
+outlier_filter_radius: 5.0
+outlier_filter_min_points: 20
+
+min_translation: 0.5
+min_rotation: 0.015

@@ -1,0 +1,60 @@
+<launch>
+    <arg name="rviz" default="true"/>
+    <arg name="enable_slam" default="true"/>
+    <arg name="3d_mapping" default="true"/>
+
+    <!-- offline mode -->
+    <arg name="file" default=""/>
+    <arg name="start" default="0.0"/>
+    <arg name="duration" default="-1"/>
+    <arg name="kill" default="false"/>
+
+    <!-- offline mode -->
+    <group ns="bruce" unless="$(eval arg('file') == '')">
+        <group ns="slam">
+            <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>
+            <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" ns="feature_extraction"/>
+            <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml" ns="gyro"/>
+            <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen"
+                args="--file $(arg file) --start=$(arg start) --duration=$(arg duration)" required="$(arg kill)">
+                <rosparam command="load" file="$(find bruce_slam)/config/slam.yaml" subst_value="true"/>
+                <param name="enable_slam" value="$(arg enable_slam)"/>
+            </node>
+        </group>
+    </group>
+
+    <!-- online mode -->
+
+    <node if="$(arg 3d_mapping)" pkg="stereo_sonar" name="stereo_sonar" type="stereo_sonar_node.py" output="screen">
+            <rosparam command="load" file="$(find stereo_sonar)/config/match.yaml"/>
+    </node>
+
+
+    <group ns="bruce" if="$(eval arg('file') == '')">
+        <group ns="slam">
+
+            <node pkg="bruce_slam" name="gyro_fusion" type="gyro_node.py" output="screen">
+                <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml"/>
+            </node>
+
+            <node pkg="bruce_slam" name="dead_reckoning" type="dead_reckoning_node.py" output="screen">
+                <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml"/>
+            </node>
+
+            <node pkg="bruce_slam" name="feature_extraction" type="feature_extraction_node.py" output="screen">
+                <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" subst_value="true"/>
+            </node>
+            
+            <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen">
+                <rosparam command="load" file="$(find bruce_slam)/config/slam.yaml" subst_value="true"/>
+                <param name="enable_slam" value="$(arg enable_slam)"/>
+                <param name="save_fig" value="false"/>
+            </node>
+
+        </group>
+        <node pkg="tf" name="map_to_world_tf_publisher" type="static_transform_publisher" args="0 0 0 0 0 3.14159 world map 100"/>
+    </group>
+
+    <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find bruce_slam)/rviz/video.rviz" />
+    
+</launch>

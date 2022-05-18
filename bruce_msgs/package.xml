@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>bruce_msgs</name>
+    <version>0.0.1</version>
+    <description> The BlueROV Underwater SLAM and Exploration ROS messages and services. </description>
+    <author>Jinkun Wang</author>
+    <maintainer email="jmcconn1@stevens.edu">John McConnell</maintainer>
+    <license>MIT License</license>
+    <buildtool_depend>catkin</buildtool_depend>
+    <depend>python-catkin-tools</depend>
+    <depend>gtsam</depend>
+    <depend>rospy</depend>
+    <depend>geometry_msgs</depend>
+    <depend>nav_msgs</depend>
+    <depend>sensor_msgs</depend>
+    <build_depend>message_generation</build_depend>
+    <exec_depend>message_runtime</exec_depend>
+</package>

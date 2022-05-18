@@ -1,0 +1,12 @@
+# the latitude of operation, this is to estimate the rotation rate of earth
+latitude: 40.70594689371728
+
+# gyro refresh rate (hz)
+sensor_rate: 250
+
+# offsets, the rotation offset between the gyro frame and sonar frame. IN DEGREES!!!
+offset:
+  x: 0.
+  y: 0.
+  z: 45.
+

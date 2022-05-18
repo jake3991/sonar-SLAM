@@ -1,0 +1,31 @@
+readingDataPointsFilters:
+
+referenceDataPointsFilters:
+
+matcher:
+  KDTreeMatcher:
+    knn: 1
+    epsilon: 0 
+    maxDist: 10.0
+
+outlierFilters:
+  - MaxDistOutlierFilter:
+      maxDist: 3.0
+  - TrimmedDistOutlierFilter:
+      ratio: 0.8
+
+errorMinimizer:
+  # PointToPlaneErrorMinimizer:
+  #   force2D: 1
+  PointToPointErrorMinimizer
+
+transformationCheckers:
+  - CounterTransformationChecker:
+      maxIterationCount: 40
+  - DifferentialTransformationChecker:
+      minDiffRotErr: 0.01
+      minDiffTransErr: 0.1
+      smoothLength: 4   
+
+inspector:
+  NullInspector

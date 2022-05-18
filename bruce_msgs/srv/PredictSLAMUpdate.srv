@@ -1,0 +1,6 @@
+uint32 key
+bool return_isam2_update
+nav_msgs/Path[] paths
+---
+bruce_msgs/ISAM2Update[] isam2_updates
+nav_msgs/Path[] keyframes
