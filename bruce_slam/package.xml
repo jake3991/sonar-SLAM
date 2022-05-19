@@ -12,7 +12,6 @@
   <depend>rospy</depend>
   <build_depend>libpointmatcher</build_depend>
   <build_depend>message_generation</build_depend>
-  <exec_depend>gtsam</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>message_runtime</exec_depend>
 </package>
