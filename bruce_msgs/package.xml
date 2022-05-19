@@ -8,7 +8,6 @@
     <license>MIT License</license>
     <buildtool_depend>catkin</buildtool_depend>
     <depend>python-catkin-tools</depend>
-    <depend>gtsam</depend>
     <depend>rospy</depend>
     <depend>geometry_msgs</depend>
     <depend>nav_msgs</depend>

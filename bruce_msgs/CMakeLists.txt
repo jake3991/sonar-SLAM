@@ -33,22 +33,22 @@ generate_messages(
    #sonar_oculus
 )
 
-find_package(GTSAM REQUIRED)
-set(GTSAM_LIBRARIES gtsam)
+#find_package(GTSAM REQUIRED)
+#set(GTSAM_LIBRARIES gtsam)
 
-include_directories(
-  include
-  ${GTSAM_INCLUDE_DIR}
-  ${catkin_INCLUDE_DIRS}
-)
+#include_directories(
+#  include
+#  ${GTSAM_INCLUDE_DIR}
+#  ${catkin_INCLUDE_DIRS}
+#)
 
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES conversions
    CATKIN_DEPENDS message_runtime geometry_msgs nav_msgs sensor_msgs
-   DEPENDS GTSAM
+   #DEPENDS GTSAM
 )
 
-add_library(conversions src/bruce_msgs/conversions.cpp)
-add_dependencies(conversions bruce_msgs_generate_messages_cpp)
-target_link_libraries(conversions ${GTSAM_LIBRARIES} ${catkin_LIBRARIES})
+#add_library(conversions src/bruce_msgs/conversions.cpp)
+#add_dependencies(conversions bruce_msgs_generate_messages_cpp)
+#target_link_libraries(conversions  ${catkin_LIBRARIES})
