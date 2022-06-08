@@ -20,7 +20,6 @@ from bruce_slam.utils.conversions import *
 from bruce_slam.utils.io import *
 from bruce_slam.utils.visualization import ros_colorline_trajectory
 
-import math
 
 class DeadReckoningNode(object):
     '''A class to support dead reckoning using DVL and IMU readings
@@ -46,8 +45,6 @@ class DeadReckoningNode(object):
         self.keyframe_rotation = None
 
         self.dvl_error_timer = 0.0
-
-
 
     def init_node(self, ns="~")->None:
         """Init the node, fetch all paramaters from ROS
@@ -98,7 +95,6 @@ class DeadReckoningNode(object):
 
         loginfo("Localization node is initialized")
 
-
     def callback(self, imu_msg:Imu, dvl_msg:DVL)->None:
         """Handle the dead reckoning using the VN100 and DVL only. Fuse and publish an odometry message.
 
@@ -120,13 +116,9 @@ class DeadReckoningNode(object):
         if abs(dd_delay) > 1.0:
             logdebug("Missing depth message for {}".format(dd_delay))
 
-
-
         #convert the imu message from msg to gtsam rotation object
         rot = r2g(imu_msg.orientation)
         rot = rot.compose(self.imu_rot.inverse())
-
-
 
         #if we have no yaw yet, set this one as zero
         if self.imu_yaw0 is None:
@@ -134,7 +126,6 @@ class DeadReckoningNode(object):
 
         # Get a rotation matrix
         rot = gtsam.Rot3.Ypr(rot.yaw() - self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
-        print('rot',rot)
 
         # parse the DVL message into an array of velocites
         vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
@@ -172,8 +163,6 @@ class DeadReckoningNode(object):
         rot = r2g(imu_msg.orientation)
         rot = rot.compose(self.imu_rot.inverse())
 
-        print('rot1',rot)
-
         #if we have no yaw yet, set this one as zero
         if self.imu_yaw0 is None:
             self.imu_yaw0 = rot.yaw()
@@ -200,7 +189,6 @@ class DeadReckoningNode(object):
         #if the DVL message has any velocity above the max threhold do some error handling
         if np.any(np.abs(vel) > self.dvl_max_velocity):
             if self.pose:
-                print('self.pose',self.pose)
                 self.dvl_error_timer += (dvl_time - self.prev_time).to_sec()
                 if self.dvl_error_timer > 5.0:
                     logwarn(

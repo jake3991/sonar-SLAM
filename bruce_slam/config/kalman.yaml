@@ -1,0 +1,17 @@
+# Localization node
+dvl_max_velocity: 0.5
+
+# [x y z roll pitch yaw]
+imu_pose: [0, 0, 0, deg(-90), 0, 0]
+
+# keyframe spacing for the dead reckoning system
+keyframe_duration: 1.0
+keyframe_translation: 4.0
+keyframe_rotation: deg(30)
+
+# should we use the FOG? Do not set to true if there is no FOG sensor.
+use_gyro: False
+
+# which IMU driver are we using 1 is the heavy and 2 is heavy MKII
+# the provided data file is version 1
+imu_version: 1
