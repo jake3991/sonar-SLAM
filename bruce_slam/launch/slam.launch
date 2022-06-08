@@ -11,7 +11,8 @@
     <!-- offline mode -->
     <group ns="bruce" unless="$(eval arg('file') == '')">
         <group ns="slam">
-            <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>
+        <!--
+            <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>-->
             <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" ns="feature_extraction"/>
             <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml" ns="gyro"/>
             <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen"
@@ -30,24 +31,34 @@
                 <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml"/>
             </node>
 
-            <node pkg="bruce_slam" name="dead_reckoning" type="dead_reckoning_node.py" output="screen">
+            
+            <!--<node pkg="bruce_slam" name="dead_reckoning" type="dead_reckoning_node.py" output="screen">
                 <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml"/>
             </node>
+            -->
+            
 
             <node pkg="bruce_slam" name="feature_extraction" type="feature_extraction_node.py" output="screen">
                 <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" subst_value="true"/>
             </node>
-            
+
             <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen">
                 <rosparam command="load" file="$(find bruce_slam)/config/slam.yaml" subst_value="true"/>
                 <param name="enable_slam" value="$(arg enable_slam)"/>
                 <param name="save_fig" value="false"/>
             </node>
 
+            
+            <node pkg="bruce_slam" name="kalman" type="kalman_node.py" output="screen">
+                <rosparam command="load" file="$(find bruce_slam)/config/kalman.yaml"/>
+            </node>
+            
+            
+
         </group>
         <node pkg="tf" name="map_to_world_tf_publisher" type="static_transform_publisher" args="0 0 0 0 0 3.14159 world map 100"/>
     </group>
 
     <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find bruce_slam)/rviz/video.rviz" />
-    
+
 </launch>

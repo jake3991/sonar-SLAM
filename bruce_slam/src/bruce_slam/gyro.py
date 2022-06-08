@@ -15,7 +15,7 @@ class GyroFilter(object):
     '''A class to support dead reckoning using DVL and IMU readings
     '''
     def __init__(self):
-        
+
         # start the euler angles
         self.roll, self.pitch, self.yaw = 90.,0.,0.
 
@@ -25,14 +25,14 @@ class GyroFilter(object):
         Args:
             ns (str, optional): The namespace the node is in. Defaults to "~".
         """
-        
+
         # define the rotation offset matrix for the gyro, this makes the gyro frame align with the sonar frame
         x = rospy.get_param(ns + "offset/x")
         y = rospy.get_param(ns + "offset/y")
         z = rospy.get_param(ns + "offset/z")
-        self.offset_matrix = Rotation.from_euler("xyz",[x,y,z],degrees=True).as_matrix()
+        self.offset_matrix = Rotation.from_euler("xyz",[x,y,z],degrees=True).as_dcm()
 
-        # the speed the earth is rotating 
+        # the speed the earth is rotating
         self.latitude = np.radians(rospy.get_param(ns + "latitude"))
         self.earth_rate = -15.04107 * np.sin(self.latitude) / 3600.0
         self.sensor_rate = rospy.get_param(ns + "sensor_rate")
@@ -44,7 +44,7 @@ class GyroFilter(object):
         loginfo("Gyro filtering node is initialized")
 
     def callback(self, gyro_msg:gyro)->None:
-        """Callback function, takes in the raw gyro readings (delta angles) and 
+        """Callback function, takes in the raw gyro readings (delta angles) and
         updates the estimate of euler angles. Publishes these angles as a ROS odometry message.
 
         Args:
@@ -68,7 +68,7 @@ class GyroFilter(object):
         #package as a gtsam object
         rot = gtsam.Rot3.Ypr(self.pitch,self.yaw,self.roll)
         pose = gtsam.Pose3(rot, gtsam.Point3(0,0,0))
-        
+
         # publish an odom message
         header = rospy.Header()
         header.stamp = gyro_msg.header.stamp

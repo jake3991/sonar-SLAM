@@ -21,4 +21,4 @@ visualization:
   color: [0, 165, 255]
 
 # are we using compressed imagary
-compressed_images: False
+compressed_images: True
