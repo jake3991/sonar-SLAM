@@ -5,7 +5,7 @@ import gtsam
 import numpy as np
 
 import rospy
-from std_msgs.msg import String, Float32MultiArray
+from std_msgs.msg import String, Float32
 
 # ros-python imports
 from nav_msgs.msg import Odometry
@@ -40,6 +40,7 @@ class KalmanNode(object):
 	def init_node(self, ns="~")->None:
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=10)
 		self.pub = rospy.Publisher("state_vector_with_kalman",PoseStamped,queue_size=10)
+		self.pubtheta = rospy.Publisher("yaw_kalman_topic",Float32,queue_size=250)
 
 		if rospy.get_param(ns + "imu_version") == 1:
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=10)
@@ -104,6 +105,8 @@ class KalmanNode(object):
 		msg.pose.position.y = state_vector[1,0]
 		msg.pose.position.z = state_vector[2,0]
 
+		self.send_theta(self.state_vector[5,0])
+
 		x,y,z,w = quaternion_from_euler(self.state_vector[3,0],self.state_vector[4,0],self.state_vector[5,0])
 		msg.pose.orientation.x = x
 		msg.pose.orientation.y = y
@@ -111,6 +114,11 @@ class KalmanNode(object):
 		msg.pose.orientation.w = w
 
 		self.pub.publish(msg)
+
+	def send_theta(self,yaw):
+		msg = Float32()
+		msg.data = yaw
+		self.pubtheta.publish(msg)
 
 
 	# def pressure_callback(self, depth_msg:Depth)->None:
