@@ -39,8 +39,27 @@ class KalmanNode(object):
 		#state vector = (x,y,z,roll, pitch, yaw, x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot)
 		self.state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.cov_matrix= np.diag([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-		self.Q = np.eye(12,12) #proccess noise
-		self.R = np.eye(3,3)
+
+		self.σx, self.σy, self.σz = 1., 1., 1.
+		self.σroll, self.σpitch, self.σyaw = 0.1, 0.1, 0.1
+		self.σxd, self.σyd, self.σzd = 1., 1., 1.
+		self.σrolld, self.σpitchd, self.σyawd = 0.1, 0.1, 0.1
+		self.Q = np.array([
+		[self.σx, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+		[0., self.σy, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+		[0., 0., self.σz, 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+		[0., 0., 0., self.σroll, 0., 0., 0., 0., 0., 0., 0., 0.],
+		[0., 0., 0., 0., self.σpitch, 0., 0., 0., 0., 0., 0., 0.],
+		[0., 0., 0., 0., 0., self.σyaw, 0., 0., 0., 0., 0., 0.],
+		[0., 0., 0., 0., 0., 0., self.σxd, 0., 0., 0., 0., 0.],
+		[0., 0., 0., 0., 0., 0., 0., self.σyd, 0., 0., 0., 0.],
+		[0., 0., 0., 0., 0., 0., 0., 0., self.σzd, 0., 0., 0.],
+		[0., 0., 0., 0., 0., 0., 0., 0., 0., self.σrolld, 0., 0.],
+		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.σpitchd, 0.],
+		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.σyawd]])
+
+		self.R_imu = np.eye(3,3)
+		self.R_dvl = np.eye(3,3)
 		self.dt_dvl = 0.2 # 5Hz
 		self.H_dvl = np.array([
 		[0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0.,],
@@ -60,8 +79,10 @@ class KalmanNode(object):
 			ns (str, optional): The namespace of the node. Defaults to "~".
 		"""
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=10)
-		self.pub = rospy.Publisher("state_vector_with_kalman",PoseStamped,queue_size=250)
-		self.pubtheta = rospy.Publisher("yaw_kalman_topic",Float32,queue_size=250)
+		self.pub = rospy.Publisher("state_vector_kalman",PoseStamped,queue_size=250)
+		self.pub_roll = rospy.Publisher("roll_kalman",Float32,queue_size=250)
+		self.pub_pitch = rospy.Publisher("pitch_kalman",Float32,queue_size=250)
+		self.pub_yaw = rospy.Publisher("yaw_kalman",Float32,queue_size=250)
 
 		if rospy.get_param(ns + "imu_version") == 1:
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=250)
@@ -102,7 +123,7 @@ class KalmanNode(object):
 		return predicted_x, predicted_P
 
 
-	def kalman_correct(self,predicted_x:np.array,predicted_P:np.array,z:np.array,H:np.array):
+	def kalman_correct(self, predicted_x:np.array, predicted_P:np.array, z:np.array, H:np.array, R:np.array):
 		"""Measurement Update.
 
 		Args:
@@ -116,7 +137,7 @@ class KalmanNode(object):
 			corrected_P (np.array): corrected covariance matrix
 
 		"""
-		K = predicted_P @ H.T @ inv(H @ predicted_P @ H.T + self.R)
+		K = predicted_P @ H.T @ inv(H @ predicted_P @ H.T + R)
 		corrected_x = predicted_x + K @ (z - H @ predicted_x)
 		corrected_P = predicted_P - K @ H @ predicted_P
 		return corrected_x, corrected_P
@@ -131,10 +152,8 @@ class KalmanNode(object):
 		vel = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
 
 		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, vel, self.H_dvl)
+		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, vel, self.H_dvl, self.R_dvl)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
-
-		self.send_state_vector(self.state_vector,dvl_msg.header.stamp)
 
 
 	def imu_callback(self, imu_msg:Imu)->None:
@@ -148,8 +167,10 @@ class KalmanNode(object):
 		euler_angle = np.array([[roll_x], [pitch_y], [yaw_z]])
 
 		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_imu)
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu)
+		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
+
+		self.send_state_vector(self.state_vector, imu_msg.header.stamp)
 
 
 	def send_state_vector(self,state_vector:np.array,t:float):
@@ -160,13 +181,13 @@ class KalmanNode(object):
 			dt (float): dvl_msg.header.stamp
 		"""
 		msg = PoseStamped()
-		msg.header.stamp = t # took dvl_msg.header.stamp
+		msg.header.stamp = t
 		msg.header.frame_id = "map"
 		msg.pose.position.x = state_vector[0,0]
 		msg.pose.position.y = state_vector[1,0]
 		msg.pose.position.z = state_vector[2,0]
 
-		self.send_theta(self.state_vector[5,0])
+		self.send_angles(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
 
 		x,y,z,w = quaternion_from_euler(self.state_vector[3,0],self.state_vector[4,0],self.state_vector[5,0])
 		msg.pose.orientation.x = x
@@ -177,21 +198,22 @@ class KalmanNode(object):
 		self.pub.publish(msg)
 
 
-	def send_theta(self,yaw:float):
-		"""Publish the yaw.
+	def send_angles(self,roll:float, pitch:float, yaw:float):
+		"""Publish roll, pitch and yaw.
 
 		Args:
-			yaw (float): theta
+			roll (float)
+			pitch (float)
+			yaw (float)
 		"""
-		msg = Float32()
-		msg.data = yaw
-		self.pubtheta.publish(msg)
+		msg_r = Float32()
+		msg_r.data = roll
+		self.pub_roll.publish(msg_r)
 
+		msg_p = Float32()
+		msg_p.data = pitch
+		self.pub_pitch.publish(msg_p)
 
-	# def pressure_callback(self, depth_msg:Depth)->None:
-	#
-	#     #kalman prediction
-	#     #kalman update
-	#
-	# def fiber_opitc_gyro(self,fog_msg):
-	#     # FOG gives theta_dot
+		msg_y = Float32()
+		msg_y.data = yaw
+		self.pub_yaw.publish(msg_y)

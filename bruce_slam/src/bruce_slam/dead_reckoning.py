@@ -22,6 +22,7 @@ from bruce_slam.utils.visualization import ros_colorline_trajectory
 
 import math
 from std_msgs.msg import String, Float32
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 class DeadReckoningNode(object):
 	'''A class to support dead reckoning using DVL and IMU readings
@@ -97,7 +98,9 @@ class DeadReckoningNode(object):
 
 		self.tf = tf.TransformBroadcaster()
 
-		self.pub_th = rospy.Publisher("yaw_topic",Float32,queue_size=250)
+		self.pub_roll = rospy.Publisher("roll",Float32,queue_size=250)
+		self.pub_pitch = rospy.Publisher("pitch",Float32,queue_size=250)
+		self.pub_yaw = rospy.Publisher("yaw",Float32,queue_size=250)
 
 
 		loginfo("Localization node is initialized")
@@ -110,6 +113,33 @@ class DeadReckoningNode(object):
 			imu_msg (Imu): the message from VN100
 			dvl_msg (DVL): the message from the DVL
 		"""
+
+		#-------
+
+		# quaternion = (odom_msg.pose.pose.orientation.x,odom_msg.pose.pose.orientation.y,odom_msg.pose.pose.orientation.z,odom_msg.pose.pose.orientation.w)
+		# roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
+
+		quaternion = (imu_msg.orientation.x,imu_msg.orientation.y,imu_msg.orientation.z,imu_msg.orientation.w)
+		roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
+
+		msg_r = Float32()
+		# msg_r.data = self.pose.rotation().roll()
+		msg_r.data = roll_x
+		self.pub_roll.publish(msg_r)
+
+		msg_p = Float32()
+		# msg_p.data = self.pose.rotation().pitch()
+		msg_p.data = pitch_y
+		self.pub_pitch.publish(msg_p)
+
+		msg_y = Float32()
+		# msg_y.data = self.pose.rotation().yaw()
+		msg_y.data = yaw_z
+		self.pub_yaw.publish(msg_y)
+
+
+
+		#-------
 
 		#get the previous depth message
 		depth_msg = self.depth_cache.getLast()
@@ -140,6 +170,8 @@ class DeadReckoningNode(object):
 
 		# package the odom message and publish it
 		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)
+
+
 
 	def callback_with_gyro(self, imu_msg:Imu, dvl_msg:DVL, gyro_msg:GyroMsg)->None:
 		"""Handle the dead reckoning state estimate using the fiber optic gyro. Here we use the
@@ -283,13 +315,6 @@ class DeadReckoningNode(object):
 		if self.pose is None:
 			return
 
-		#-------
-
-		msg = Float32()
-		msg.data = self.pose.rotation().yaw()
-		self.pub_th.publish(msg)
-
-		#-------
 
 		header = rospy.Header()
 		header.stamp = self.prev_time
