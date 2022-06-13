@@ -40,10 +40,11 @@ class KalmanNode(object):
 		self.state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.cov_matrix= np.diag([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
-		self.σx, self.σy, self.σz = 1., 1., 1.
+		self.σx, self.σy, self.σz = 0.00001, 0.00001, 0.00001
 		self.σroll, self.σpitch, self.σyaw = 0.1, 0.1, 0.1
-		self.σxd, self.σyd, self.σzd = 1., 1., 1.
+		self.σxd, self.σyd, self.σzd = 10, 10, 10
 		self.σrolld, self.σpitchd, self.σyawd = 0.1, 0.1, 0.1
+
 		self.Q = np.array([
 		[self.σx, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
 		[0., self.σy, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
@@ -58,13 +59,14 @@ class KalmanNode(object):
 		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.σpitchd, 0.],
 		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.σyawd]])
 
-		self.R_imu = np.eye(3,3)
-		self.R_dvl = np.eye(3,3)
+		self.R_dvl = np.eye(3,3)*0.00001
 		self.dt_dvl = 0.2 # 5Hz
 		self.H_dvl = np.array([
 		[0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0.,],
 		[0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.,],
 		[0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0.,]])
+
+		self.R_imu = np.eye(3,3)
 		self.dt_imu = 0.005 # 200Hz
 		self.H_imu = np.array([
 		[0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
@@ -83,6 +85,9 @@ class KalmanNode(object):
 		self.pub_roll = rospy.Publisher("roll_kalman",Float32,queue_size=250)
 		self.pub_pitch = rospy.Publisher("pitch_kalman",Float32,queue_size=250)
 		self.pub_yaw = rospy.Publisher("yaw_kalman",Float32,queue_size=250)
+		self.pub_x_vel = rospy.Publisher("xvel_kalman",Float32,queue_size=250)
+		self.pub_y_vel = rospy.Publisher("yvel_kalman",Float32,queue_size=250)
+		self.pub_z_vel = rospy.Publisher("zvel_kalman",Float32,queue_size=250)
 
 		if rospy.get_param(ns + "imu_version") == 1:
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=250)
@@ -120,6 +125,7 @@ class KalmanNode(object):
 
 		predicted_P = A @ previous_P @ A.T + self.Q
 		predicted_x = A @ previous_x
+
 		return predicted_x, predicted_P
 
 
@@ -188,6 +194,7 @@ class KalmanNode(object):
 		msg.pose.position.z = state_vector[2,0]
 
 		self.send_angles(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
+		self.send_velocities(self.state_vector[6,0], self.state_vector[7,0], self.state_vector[8,0])
 
 		x,y,z,w = quaternion_from_euler(self.state_vector[3,0],self.state_vector[4,0],self.state_vector[5,0])
 		msg.pose.orientation.x = x
@@ -196,6 +203,26 @@ class KalmanNode(object):
 		msg.pose.orientation.w = w
 
 		self.pub.publish(msg)
+
+	def send_velocities(self,x_vel:float,y_vel:float,z_vel:float):
+		"""Publish x,y and z velocities.
+
+		Args:
+			x_vel (float)
+			y_vel (float)
+			z_vel (float)
+		"""
+		msg_x = Float32()
+		msg_x.data = x_vel
+		self.pub_x_vel.publish(msg_x)
+
+		msg_y = Float32()
+		msg_y.data = y_vel
+		self.pub_y_vel.publish(msg_y)
+
+		msg_z = Float32()
+		msg_z.data = z_vel
+		self.pub_z_vel.publish(msg_z)
 
 
 	def send_angles(self,roll:float, pitch:float, yaw:float):
