@@ -29,6 +29,10 @@ import matplotlib.pyplot as plt
 import math
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from scipy.linalg import sqrtm,expm,logm,norm,block_diag
+from matplotlib.cbook import flatten
+from numpy.linalg import inv
+from numpy import cos, sin
 
 
 class KalmanNode(object):
@@ -88,6 +92,9 @@ class KalmanNode(object):
 		self.pub_x_vel = rospy.Publisher("xvel_kalman",Float32,queue_size=250)
 		self.pub_y_vel = rospy.Publisher("yvel_kalman",Float32,queue_size=250)
 		self.pub_z_vel = rospy.Publisher("zvel_kalman",Float32,queue_size=250)
+		self.pub_x = rospy.Publisher("x_kalman",Float32,queue_size=250)
+		self.pub_y = rospy.Publisher("y_kalman",Float32,queue_size=250)
+		self.pub_z = rospy.Publisher("z_kalman",Float32,queue_size=250)
 
 		if rospy.get_param(ns + "imu_version") == 1:
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=250)
@@ -179,30 +186,86 @@ class KalmanNode(object):
 		self.send_state_vector(self.state_vector, imu_msg.header.stamp)
 
 
+	def rotation_matrix(self,φ:float,θ:float,ψ:float):
+		"""Create the rotation matrix between the body frame and the global
+		frame thanks to the three euler angles.
+
+		Args:
+			φ (float) : roll
+			θ (float) : pitch
+			ψ (float) : yaw
+		"""
+		R_roll = np.array([ [1,      0,       0],
+							[0, cos(φ), -sin(φ)],
+							[0, sin(φ), cos(φ)]])
+
+		R_pitch = np.array([[cos(θ), 0, sin(θ)],
+							[0,      1,      0],
+							[-sin(θ), 0, cos(θ)]])
+
+		R_yaw = np.array([  [cos(ψ), -sin(ψ), 0],
+							[sin(ψ), cos(ψ),  0],
+							[0,       0    , 1]])
+		R = R_yaw@R_pitch@R_roll
+		return R
+
+
 	def send_state_vector(self,state_vector:np.array,t:float):
 		"""Publish the state vector : pose (x,y,z) and orientation (x,y,z,w).
 
 		Args:
-			state_vector (np.array): value of the state vector
+			state_vector (np.array): (x,y,z,roll, pitch, yaw, x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot)
 			dt (float): dvl_msg.header.stamp
 		"""
-		msg = PoseStamped()
-		msg.header.stamp = t
-		msg.header.frame_id = "map"
-		msg.pose.position.x = state_vector[0,0]
-		msg.pose.position.y = state_vector[1,0]
-		msg.pose.position.z = state_vector[2,0]
+		# msg = PoseStamped()
+		# msg.header.stamp = t
+		# msg.header.frame_id = "map"
+		# msg.pose.position.x = state_vector[0,0]
+		# msg.pose.position.y = state_vector[1,0]
+		# msg.pose.position.z = state_vector[2,0]
 
 		self.send_angles(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
 		self.send_velocities(self.state_vector[6,0], self.state_vector[7,0], self.state_vector[8,0])
 
-		x,y,z,w = quaternion_from_euler(self.state_vector[3,0],self.state_vector[4,0],self.state_vector[5,0])
-		msg.pose.orientation.x = x
-		msg.pose.orientation.y = y
-		msg.pose.orientation.z = z
-		msg.pose.orientation.w = w
+		vel = np.array([[self.state_vector[6,0]], [self.state_vector[7,0]], [self.state_vector[8,0]]])
+		R = self.rotation_matrix(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
+		self.send_position(vel, R, self.dt_dvl)
 
-		self.pub.publish(msg)
+		# x,y,z,w = quaternion_from_euler(self.state_vector[3,0],self.state_vector[4,0],self.state_vector[5,0])
+		# msg.pose.orientation.x = x
+		# msg.pose.orientation.y = y
+		# msg.pose.orientation.z = z
+		# msg.pose.orientation.w = w
+		#
+		# self.pub.publish(msg)
+
+
+	def send_position(self,vel:np.array,R:np.array,dt:float):
+		"""Publish x,y and z positions.
+
+		Args:
+			vel (np.array) : [[ vel_x ]
+							 [ vel_y ]
+							 [ vel_z ]]
+
+			R (np.array) : Rotation matrix (body frame -> global frame)
+			dt (float) : DVL time step
+		"""
+		xyz = R@vel
+		x,y,z=xyz[0][0],xyz[1][0],xyz[2][0]
+
+		msg_x = Float32()
+		msg_x.data = x
+		self.pub_x.publish(msg_x)
+
+		msg_y = Float32()
+		msg_y.data = y
+		self.pub_y.publish(msg_y)
+
+		msg_z = Float32()
+		msg_z.data = z
+		self.pub_z.publish(msg_z)
+
 
 	def send_velocities(self,x_vel:float,y_vel:float,z_vel:float):
 		"""Publish x,y and z velocities.
