@@ -156,36 +156,6 @@ class KalmanNode(object):
 		return corrected_x, corrected_P
 
 
-	def dvl_callback(self, dvl_msg:DVL)->None:
-		"""Handle the Kalman Filter using the DVL only. Publish the state vector.
-
-		Args:
-			dvl_msg (DVL): the message from the DVL
-		"""
-		vel = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
-
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, vel, self.H_dvl, self.R_dvl)
-		self.state_vector, self.cov_matrix = corrected_x, corrected_P
-
-
-	def imu_callback(self, imu_msg:Imu)->None:
-		"""Handle the Kalman Filter using the VN100 only.
-
-		Args:
-			imu_msg (Imu): the message from VN100
-		"""
-		quaternion = (imu_msg.orientation.x,imu_msg.orientation.y,imu_msg.orientation.z,imu_msg.orientation.w)
-		roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
-		euler_angle = np.array([[roll_x], [pitch_y], [yaw_z]])
-
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_imu)
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
-		self.state_vector, self.cov_matrix = corrected_x, corrected_P
-
-		self.send_state_vector(self.state_vector, imu_msg.header.stamp)
-
-
 	def rotation_matrix(self,φ:float,θ:float,ψ:float):
 		"""Create the rotation matrix between the body frame and the global
 		frame thanks to the three euler angles.
@@ -210,6 +180,38 @@ class KalmanNode(object):
 		return R
 
 
+	def dvl_callback(self, dvl_msg:DVL)->None:
+		"""Handle the Kalman Filter using the DVL only. Publish the state vector.
+
+		Args:
+			dvl_msg (DVL): the message from the DVL
+		"""
+		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
+		R = self.rotation_matrix(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
+		dvl_global_frame = R @ dvl_measurement
+
+		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
+		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, dvl_global_frame, self.H_dvl, self.R_dvl)
+		self.state_vector, self.cov_matrix = corrected_x, corrected_P
+
+
+	def imu_callback(self, imu_msg:Imu)->None:
+		"""Handle the Kalman Filter using the VN100 only.
+
+		Args:
+			imu_msg (Imu): the message from VN100
+		"""
+		quaternion = (imu_msg.orientation.x,imu_msg.orientation.y,imu_msg.orientation.z,imu_msg.orientation.w)
+		roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
+		euler_angle = np.array([[roll_x], [pitch_y], [yaw_z]])
+
+		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_imu)
+		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
+		self.state_vector, self.cov_matrix = corrected_x, corrected_P
+
+		self.send_state_vector(self.state_vector, imu_msg.header.stamp)
+
+
 	def send_state_vector(self,state_vector:np.array,t:float):
 		"""Publish the state vector : pose (x,y,z) and orientation (x,y,z,w).
 
@@ -217,20 +219,18 @@ class KalmanNode(object):
 			state_vector (np.array): (x,y,z,roll, pitch, yaw, x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot)
 			dt (float): dvl_msg.header.stamp
 		"""
+
+		self.send_position(self.state_vector[0,0], self.state_vector[1,0], self.state_vector[2,0])
+		self.send_angles(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
+		self.send_velocities(self.state_vector[6,0], self.state_vector[7,0], self.state_vector[8,0])
+
 		# msg = PoseStamped()
 		# msg.header.stamp = t
 		# msg.header.frame_id = "map"
 		# msg.pose.position.x = state_vector[0,0]
 		# msg.pose.position.y = state_vector[1,0]
 		# msg.pose.position.z = state_vector[2,0]
-
-		self.send_angles(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
-		self.send_velocities(self.state_vector[6,0], self.state_vector[7,0], self.state_vector[8,0])
-
-		vel = np.array([[self.state_vector[6,0]], [self.state_vector[7,0]], [self.state_vector[8,0]]])
-		R = self.rotation_matrix(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
-		self.send_position(vel, R, self.dt_dvl)
-
+		#
 		# x,y,z,w = quaternion_from_euler(self.state_vector[3,0],self.state_vector[4,0],self.state_vector[5,0])
 		# msg.pose.orientation.x = x
 		# msg.pose.orientation.y = y
@@ -240,19 +240,7 @@ class KalmanNode(object):
 		# self.pub.publish(msg)
 
 
-	def send_position(self,vel:np.array,R:np.array,dt:float):
-		"""Publish x,y and z positions.
-
-		Args:
-			vel (np.array) : [[ vel_x ]
-							 [ vel_y ]
-							 [ vel_z ]]
-
-			R (np.array) : Rotation matrix (body frame -> global frame)
-			dt (float) : DVL time step
-		"""
-		xyz = R@vel
-		x,y,z=xyz[0][0],xyz[1][0],xyz[2][0]
+	def send_position(self,x:float,y:float,z:float):
 
 		msg_x = Float32()
 		msg_x.data = x
