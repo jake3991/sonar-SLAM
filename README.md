@@ -51,7 +51,7 @@ catkin-tools
 - build your workspace with catkin build NOT catkin_make
 
 # Sample data
-We provide a rosbag data file to test and run the SLAM system. Available here: https://drive.google.com/file/d/1s9hpmMoF-SJjWoM8EWz-t3mad6p15wbH/view?usp=sharing
+We provide a rosbag data file to test and run the SLAM system. Available here: https://drive.google.com/file/d/1nmiFfyk8mVssLqgac7BOe4_RPBP6Wnc9/view?usp=sharing
 
 # Running "Online"
 This will launch the SLAM system, then we will playback the data as if it is happening now. 
