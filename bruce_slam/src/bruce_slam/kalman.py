@@ -99,7 +99,7 @@ class KalmanNode(object):
 		# self.pub_y = rospy.Publisher("y_kalman",Float32,queue_size=250)
 		# self.pub_z = rospy.Publisher("z_kalman",Float32,queue_size=250)
 
-		self.odom_pub = rospy.Publisher("odom_kalman", Odometry, queue_size=250)
+		self.odom_pub = rospy.Publisher("kalman_position", Odometry, queue_size=250)
 		self.tf1 = tf.TransformBroadcaster()
 
 		if rospy.get_param(ns + "imu_version") == 1:
@@ -199,10 +199,12 @@ class KalmanNode(object):
 			dvl_msg (DVL): the message from the DVL
 		"""
 		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
-		R = self.rotation_matrix(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
-		dvl_global_frame = R @ dvl_measurement
+		#R = self.rotation_matrix(self.state_vector[3,0], self.state_vector[4,0], self.state_vector[5,0])
+		R = gtsam.Rot3.Ypr(self.state_vector[5,0], self.state_vector[4,0], self.state_vector[3,0]).matrix()
+		dvl_global_frame = R @ dvl_measurement # compare this
 
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
+		#predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
+		predicted_x, predicted_P = self.state_vector, self.cov_matrix
 		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, dvl_global_frame, self.H_dvl, self.R_dvl)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
 
@@ -225,7 +227,7 @@ class KalmanNode(object):
 		self.send_odometry(self.state_vector,imu_msg.header.stamp,imu_msg.orientation)
 
 
-	def send_odometry(self,state_vector:np.array,t:float,imu_orientation):
+	def send_odometry(self,state_vector:np.array,t:float,imu_orientation): # remove imu_orientation from this 
 		# state vector = (x,y,z,roll, pitch, yaw, x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot)
 
 		header = rospy.Header()
@@ -235,9 +237,12 @@ class KalmanNode(object):
 		odom_msg = Odometry()
 		odom_msg.header = header
 
-		rot = r2g(imu_orientation)
-		rot = rot.compose(self.imu_rot.inverse())
-		rot = gtsam.Rot3.Ypr(rot.yaw(), rot.pitch(), rot.roll()) #I put gyro_yaw =rot.yaw()
+		#rot = r2g(imu_orientation)
+		#rot = rot.compose(self.imu_rot.inverse())
+		#rot = gtsam.Rot3.Ypr(rot.yaw(), rot.pitch(), rot.roll()) #I put gyro_yaw =rot.yaw()
+
+		# I changed this so we use the state vector, not the raw IMU data
+		rot = gtsam.Rot3.Ypr(state_vector[5,0], state_vector[4,0], state_vector[3,0])
 
 		pose = gtsam.Pose3(
 			rot, gtsam.Point3(state_vector[0,0], state_vector[1,0] , 0)
@@ -266,12 +271,13 @@ class KalmanNode(object):
 		odom_msg.twist.twist.angular.z = 0
 
 		self.odom_pub.publish(odom_msg)
+		pose_msg = odom_msg.pose.pose
 
 		p = odom_msg.pose.pose.position
 		q = odom_msg.pose.pose.orientation
 
-		self.tf1.sendTransform(
-			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom")
+		#self.tf1.sendTransform(
+		#	(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom")
 
 
 
