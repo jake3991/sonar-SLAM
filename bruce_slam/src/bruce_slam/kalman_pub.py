@@ -87,7 +87,6 @@ class KalmanNode(object):
 		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_pitchd, 0.],
 		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_yawd]])
 
-		self.pub = rospy.Publisher("state_vector_kalman",PoseStamped,queue_size=250)
 		self.odom_pub = rospy.Publisher("kalman_position", Odometry, queue_size=250)
 		self.tf1 = tf.TransformBroadcaster()
 
@@ -98,6 +97,19 @@ class KalmanNode(object):
 		elif rospy.get_param(ns + "imu_version") == 2:
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC_MK_II, Imu, callback=self.imu_callback,queue_size=250)
 
+		self.pub_x_vel = rospy.Publisher("xvel_kalman",Float32,queue_size=250)
+		self.pub_y_vel = rospy.Publisher("yvel_kalman",Float32,queue_size=250)
+		self.pub_z_vel = rospy.Publisher("zvel_kalman",Float32,queue_size=250)
+		self.pub_x = rospy.Publisher("vx*dt_kalman",Float32,queue_size=250)
+		self.pub_y = rospy.Publisher("vy*dt_kalman",Float32,queue_size=250)
+		self.pub_xk= rospy.Publisher("x_kalm",Float32,queue_size=250)
+		self.pub_yk = rospy.Publisher("y_kalm",Float32,queue_size=250)
+		self.pub_z = rospy.Publisher("z_kalman",Float32,queue_size=250)
+		self.pub_roll_kalman = rospy.Publisher("roll_kalman",Float32,queue_size=250)
+		self.pub_pitch_kalman = rospy.Publisher("pitch_kalman",Float32,queue_size=250)
+		self.pub_yaw_kalman = rospy.Publisher("yaw_kalman",Float32,queue_size=250)
+
+		self.pub_trans = rospy.Publisher("new-old",Float32,queue_size=250)
 		self.pose = None
 
 		loginfo("Kalman Node is initialized")
@@ -157,21 +169,41 @@ class KalmanNode(object):
 
 
 	def dvl_callback(self, dvl_msg:DVL)->None:
-		"""Handle the Kalman Filter using the DVL only.
+		"""Handle the Kalman Filter using the DVL only. Publish the state vector.
 
 		Args:
 			dvl_msg (DVL): the message from the DVL
 		"""
 
 		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
+		R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 
 		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
 		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, dvl_measurement, self.H_dvl, self.R_dvl)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
 
+		trans_x = self.state_vector[0][0] - self.old_state_vector[0][0]
+		trans_y = self.state_vector[1][0] - self.old_state_vector[1][0]
+		self.publish_trans(trans_x)
+
+		if self.pose :
+			local_point = gtsam.Point2(trans_x, trans_y)
+			pose2 = gtsam.Pose2(
+				self.pose.x(), self.pose.y(), self.pose.rotation().yaw()
+			)
+			point = pose2.transformFrom(local_point)
+			self.pose = gtsam.Pose3(
+				R, gtsam.Point3(point[0], point[1], 0)
+			)
+
+		else:
+			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, 0))
+		self.old_state_vector = self.state_vector
+
+
 
 	def imu_callback(self, imu_msg:Imu)->None:
-		"""Handle the Kalman Filter using the VN100 only. Publish the state vector.
+		"""Handle the Kalman Filter using the VN100 only.
 
 		Args:
 			imu_msg (Imu): the message from VN100
@@ -184,30 +216,66 @@ class KalmanNode(object):
 		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
 
-		trans_x = self.state_vector[0][0] - self.old_state_vector[0][0]
-		trans_y = self.state_vector[1][0] - self.old_state_vector[1][0]
-
-		R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
-
-		if self.pose :
-			local_point = gtsam.Point2(trans_x, trans_y)
-			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
-			point = pose2.transformFrom(local_point)
-			self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], 0))
-		else:
-			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, 0))
-
-		self.old_state_vector = self.state_vector
-
 		self.send_odometry(imu_msg.header.stamp)
+		# self.send_angles(self.state_vector[3][0],self.state_vector[4][0],self.state_vector[5][0])
 
 
-	def send_odometry(self,t:float):
-		"""Publish the pose.
+
+	def send_velocities(self,x_vel:float,y_vel:float,z_vel:float):
+		"""Publish x,y and z velocities.
 
 		Args:
-			t (float): time from imu_msg
+			x_vel (float)
+			y_vel (float)
+			z_vel (float)
 		"""
+		msg_x = Float32()
+		msg_x.data = x_vel
+		self.pub_x_vel.publish(msg_x)
+
+		msg_y = Float32()
+		msg_y.data = y_vel
+		self.pub_y_vel.publish(msg_y)
+
+		msg_z = Float32()
+		msg_z.data = z_vel
+		self.pub_z_vel.publish(msg_z)
+
+
+	def publish_trans(self,trans_x):
+		msg_transx = Float32()
+		msg_transx.data = trans_x
+		self.pub_trans.publish(msg_transx)
+
+
+
+	def send_xy(self,x:float,y:float):
+		msg_x = Float32()
+		msg_x.data = x
+		self.pub_xk.publish(msg_x)
+
+		msg_y = Float32()
+		msg_y.data = y
+		self.pub_yk.publish(msg_y)
+
+
+
+	def send_position(self,x:float,y:float):
+
+		msg_x = Float32()
+		msg_x.data = x
+		self.pub_x.publish(msg_x)
+
+		msg_y = Float32()
+		msg_y.data = y
+		self.pub_y.publish(msg_y)
+
+		# msg_z = Float32()
+		# msg_z.data = z
+		# self.pub_z.publish(msg_z)
+
+	def send_odometry(self,t:float):
+		# state vector = (x,y,z,roll, pitch, yaw, x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot)
 
 		if self.pose is None:
 			return
@@ -218,16 +286,26 @@ class KalmanNode(object):
 
 		odom_msg = Odometry()
 		odom_msg.header = header
+
+
+
 		odom_msg.pose.pose = g2r(self.pose)
 
-		odom_msg.child_frame_id = "base_link"
+		odom_msg.twist.twist.linear.x = 0
+		odom_msg.twist.twist.linear.y = 0
+		odom_msg.twist.twist.linear.z = 0
+		odom_msg.twist.twist.angular.x = 0
+		odom_msg.twist.twist.angular.y = 0
+		odom_msg.twist.twist.angular.z = 0
 
-		odom_msg.twist.twist.linear.x = self.state_vector[6][0]
-		odom_msg.twist.twist.linear.y = self.state_vector[7][0]
-		odom_msg.twist.twist.linear.z = self.state_vector[8][0]
-		odom_msg.twist.twist.angular.x = self.state_vector[9][0]
-		odom_msg.twist.twist.angular.y = self.state_vector[10][0]
-		odom_msg.twist.twist.angular.z = self.state_vector[11][0]
+		# odom_msg.child_frame_id = "base_link"
+		#
+		# odom_msg.twist.twist.linear.x = self.state_vector[6][0]
+		# odom_msg.twist.twist.linear.y = self.state_vector[7][0]
+		# odom_msg.twist.twist.linear.z = self.state_vector[8][0]
+		# odom_msg.twist.twist.angular.x = self.state_vector[9][0]
+		# odom_msg.twist.twist.angular.y = self.state_vector[10][0]
+		# odom_msg.twist.twist.angular.z = self.state_vector[11][0]
 
 		self.odom_pub.publish(odom_msg)
 
@@ -238,3 +316,24 @@ class KalmanNode(object):
 
 		#self.tf1.sendTransform(
 		#	(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom")
+
+
+	def send_angles(self,roll:float, pitch:float, yaw:float):
+		"""Publish roll, pitch and yaw.
+
+		Args:
+			roll (float)
+			pitch (float)
+			yaw (float)
+		"""
+		msg_r = Float32()
+		msg_r.data = roll
+		self.pub_roll_kalman.publish(msg_r)
+
+		msg_p = Float32()
+		msg_p.data = pitch
+		self.pub_pitch_kalman.publish(msg_p)
+
+		msg_y = Float32()
+		msg_y.data = yaw
+		self.pub_yaw_kalman.publish(msg_y)

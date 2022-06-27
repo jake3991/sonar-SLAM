@@ -103,6 +103,15 @@ class DeadReckoningNode(object):
 		self.pub_yaw = rospy.Publisher("yaw",Float32,queue_size=250)
 
 
+		self.pub_xvel = rospy.Publisher("xvel",Float32,queue_size=250)
+		self.pub_yvel = rospy.Publisher("yvel",Float32,queue_size=250)
+		self.pub_zvel = rospy.Publisher("zvel",Float32,queue_size=250)
+
+		self.pub_x = rospy.Publisher("trans_x",Float32,queue_size=250)
+		self.pub_y = rospy.Publisher("trans_y",Float32,queue_size=250)
+		self.pub_z = rospy.Publisher("trans_z",Float32,queue_size=250)
+
+
 		loginfo("Localization node is initialized")
 
 
@@ -256,6 +265,27 @@ class DeadReckoningNode(object):
 			dv = (vel + self.prev_vel) * 0.5
 			trans = dv * dt
 
+			#-----
+
+			msg_vx = Float32()
+			msg_vx.data = dv[0]
+			self.pub_xvel.publish(msg_vx)
+
+			msg_vy = Float32()
+			msg_vy.data = dv[1]
+			self.pub_yvel.publish(msg_vy)
+
+			msg_x = Float32()
+			msg_x.data = trans[0]
+			self.pub_x.publish(msg_x)
+
+			msg_y = Float32()
+			msg_y.data = trans[1]
+			self.pub_y.publish(msg_y)
+
+
+			#-----
+
 			# get a rotation matrix with only roll and pitch
 			rotation_flat = gtsam.Rot3.Ypr(0, rot.pitch(), rot.roll())
 
@@ -265,6 +295,7 @@ class DeadReckoningNode(object):
 
 			# propagate our movement forward using the GTSAM utilities
 			local_point = gtsam.Point2(trans[0], trans[1])
+
 			pose2 = gtsam.Pose2(
 				self.pose.x(), self.pose.y(), self.pose.rotation().yaw()
 			)
