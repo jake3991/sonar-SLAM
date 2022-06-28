@@ -276,7 +276,7 @@ Visualization Manager:
       Shape:
         Alpha: 1
         Axes Length: 0.10000000149011612
-        Axes Radius: 0.5
+        Axes Radius: 0.699999988079071
         Color: 255; 25; 0
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
@@ -322,7 +322,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 19.626218795776367
+      Distance: 4.555633544921875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

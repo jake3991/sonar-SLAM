@@ -36,7 +36,7 @@ from numpy import cos, sin
 
 
 class KalmanNode(object):
-	'''A class to support Kalman using DVL and IMU readings
+	'''A class to support Kalman using DVL, IMU, FOG and Depth readings.
 	'''
 
 	def __init__(self):
@@ -47,7 +47,7 @@ class KalmanNode(object):
 
 
 	def init_node(self, ns="~")->None:
-		"""Init the node, fetch all paramaters from ROS
+		"""Init the node, fetch all paramaters from ROS.
 
 		Args:
 			ns (str, optional): The namespace of the node. Defaults to "~".
@@ -72,6 +72,9 @@ class KalmanNode(object):
 		self.R_imu = rospy.get_param(ns + "R_imu")
 		self.dt_imu = rospy.get_param(ns + "dt_imu")
 		self.H_imu = np.array(rospy.get_param(ns + "H_imu"))
+		self.H_gyro = np.array(rospy.get_param(ns + "H_gyro"))
+		self.R_gyro = rospy.get_param(ns + "R_gyro")
+		self.dt_gyro = rospy.get_param(ns + "dt_gyro")
 
 		self.Q = np.array([
 		[self.sigma_x, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
@@ -87,16 +90,18 @@ class KalmanNode(object):
 		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_pitchd, 0.],
 		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_yawd]])
 
+		if rospy.get_param(ns + "imu_version") == 1:
+			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=250)
+		elif rospy.get_param(ns + "imu_version") == 2:
+			self.imu_sub = rospy.Subscriber(IMU_TOPIC_MK_II, Imu, callback=self.imu_callback,queue_size=250)
 		self.pub = rospy.Publisher("state_vector_kalman",PoseStamped,queue_size=250)
 		self.odom_pub = rospy.Publisher("kalman_position", Odometry, queue_size=250)
 		self.tf1 = tf.TransformBroadcaster()
 
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=250)
-
-		if rospy.get_param(ns + "imu_version") == 1:
-			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=250)
-		elif rospy.get_param(ns + "imu_version") == 2:
-			self.imu_sub = rospy.Subscriber(IMU_TOPIC_MK_II, Imu, callback=self.imu_callback,queue_size=250)
+		self.gyro_sub = rospy.Subscriber(GYRO_INTEGRATION_TOPIC, Odometry,callback=self.gyro_callback,queue_size=250)
+		self.depth_sub = Subscriber(DEPTH_TOPIC, Depth)
+		self.depth_cache = Cache(self.depth_sub, 1)
 
 		self.pose = None
 
@@ -165,8 +170,19 @@ class KalmanNode(object):
 
 		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
 
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
+		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_gyro)
 		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, dvl_measurement, self.H_dvl, self.R_dvl)
+		self.state_vector, self.cov_matrix = corrected_x, corrected_P
+
+
+	def gyro_callback(self,gyro_msg:GyroMsg):
+		"""Handle the Kalman Filter using the FOG only.
+		Args:
+			gyro_msg (GyroMsg): the euler angles from the gyro
+		"""
+		gyro_yaw = r2g(gyro_msg.pose.pose).rotation().yaw()
+		predicted_x, predicted_P = self.state_vector, self.cov_matrix
+		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, gyro_yaw, self.H_gyro, self.R_gyro)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
 
 
@@ -189,13 +205,18 @@ class KalmanNode(object):
 
 		R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 
+		depth_msg = self.depth_cache.getLast()
+		if depth_msg is None:
+			return
+		depth = depth_msg.depth
+
 		if self.pose :
 			local_point = gtsam.Point2(trans_x, trans_y)
 			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 			point = pose2.transformFrom(local_point)
-			self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], 0))
+			self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], depth))
 		else:
-			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, 0))
+			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, depth))
 
 		self.old_state_vector = self.state_vector
 
