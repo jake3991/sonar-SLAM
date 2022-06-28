@@ -111,6 +111,8 @@ class DeadReckoningNode(object):
 		self.pub_y = rospy.Publisher("trans_y",Float32,queue_size=250)
 		self.pub_z = rospy.Publisher("trans_z",Float32,queue_size=250)
 
+		self.pub_depth = rospy.Publisher("depth",Float32,queue_size=250)
+
 
 		loginfo("Localization node is initialized")
 
@@ -176,6 +178,14 @@ class DeadReckoningNode(object):
 
 		# parse the DVL message into an array of velocites
 		vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
+
+		#-----
+		msg_d = Float32()
+		msg_d.data = depth_msg.depth
+		self.pub_depth.publish(msg_d)
+
+		#----
+
 
 		# package the odom message and publish it
 		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)

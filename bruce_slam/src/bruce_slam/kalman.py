@@ -72,9 +72,12 @@ class KalmanNode(object):
 		self.R_imu = rospy.get_param(ns + "R_imu")
 		self.dt_imu = rospy.get_param(ns + "dt_imu")
 		self.H_imu = np.array(rospy.get_param(ns + "H_imu"))
-		self.H_gyro = np.array(rospy.get_param(ns + "H_gyro"))
-		self.R_gyro = rospy.get_param(ns + "R_gyro")
-		self.dt_gyro = rospy.get_param(ns + "dt_gyro")
+		# self.H_gyro = np.array(rospy.get_param(ns + "H_gyro"))
+		# self.R_gyro = rospy.get_param(ns + "R_gyro")
+		# self.dt_gyro = rospy.get_param(ns + "dt_gyro")
+		self.H_depth = np.array(rospy.get_param(ns + "H_depth"))
+		self.R_depth = rospy.get_param(ns + "R_depth")
+		self.dt_depth = rospy.get_param(ns + "dt_depth")
 
 		self.Q = np.array([
 		[self.sigma_x, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
@@ -99,11 +102,12 @@ class KalmanNode(object):
 		self.tf1 = tf.TransformBroadcaster()
 
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=250)
-		self.gyro_sub = rospy.Subscriber(GYRO_INTEGRATION_TOPIC, Odometry,callback=self.gyro_callback,queue_size=250)
-		self.depth_sub = Subscriber(DEPTH_TOPIC, Depth)
-		self.depth_cache = Cache(self.depth_sub, 1)
+		# self.gyro_sub = rospy.Subscriber(GYRO_INTEGRATION_TOPIC, Odometry,callback=self.gyro_callback,queue_size=250)
+		self.depth_sub = rospy.Subscriber(DEPTH_TOPIC, Depth,callback=self.pressure_callback,queue_size=250)
 
 		self.pose = None
+
+		self.depth_pub = rospy.Publisher("depth_kalman", Float32, queue_size=250)
 
 		loginfo("Kalman Node is initialized")
 
@@ -123,7 +127,7 @@ class KalmanNode(object):
 		A = np.array([
 		[1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. , 0. , 0. ],
 		[0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. , 0. ],
-		[0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. ],
+		[0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. ],
 		[0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. ],
 		[0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt],
@@ -170,20 +174,33 @@ class KalmanNode(object):
 
 		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
 
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_gyro)
+		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl)
 		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, dvl_measurement, self.H_dvl, self.R_dvl)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
 
 
-	def gyro_callback(self,gyro_msg:GyroMsg):
-		"""Handle the Kalman Filter using the FOG only.
+	def pressure_callback(self,depth_msg:Depth):
+		"""Handle the Kalman Filter using the Depth.
 		Args:
-			gyro_msg (GyroMsg): the euler angles from the gyro
+			depth_msg (Depth): pressure
 		"""
-		gyro_yaw = r2g(gyro_msg.pose.pose).rotation().yaw()
+		depth = np.array([[depth_msg.depth],[0],[0]]) #we need the shape(3,1)
+
 		predicted_x, predicted_P = self.state_vector, self.cov_matrix
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, gyro_yaw, self.H_gyro, self.R_gyro)
+		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, depth, self.H_depth, self.R_depth)
 		self.state_vector, self.cov_matrix = corrected_x, corrected_P
+
+		self.send_depth(self.state_vector[2][0])
+
+
+	def send_depth(self,z:float):
+		"""Publish depth.
+		Args:
+			z (Float) : state_vector's depth
+		"""
+		msg_d = Float32()
+		msg_d.data = z
+		self.depth_pub.publish(msg_d)
 
 
 	def imu_callback(self, imu_msg:Imu)->None:
@@ -205,18 +222,13 @@ class KalmanNode(object):
 
 		R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 
-		depth_msg = self.depth_cache.getLast()
-		if depth_msg is None:
-			return
-		depth = depth_msg.depth
-
 		if self.pose :
 			local_point = gtsam.Point2(trans_x, trans_y)
 			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 			point = pose2.transformFrom(local_point)
-			self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], depth))
+			self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], 0))
 		else:
-			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, depth))
+			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, 0))
 
 		self.old_state_vector = self.state_vector
 
@@ -259,3 +271,14 @@ class KalmanNode(object):
 
 		#self.tf1.sendTransform(
 		#	(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom")
+
+	# def gyro_callback(self,gyro_msg:GyroMsg):
+	# 	"""Handle the Kalman Filter using the FOG only.
+	# 	Args:
+	# 		gyro_msg (GyroMsg): the euler angles from the gyro
+	# 	"""
+	# 	gyro_yaw = r2g(gyro_msg.pose.pose).rotation().yaw()
+	#
+	# 	predicted_x, predicted_P = self.state_vector, self.cov_matrix
+	# 	corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, gyro_yaw, self.H_gyro, self.R_gyro)
+	# 	self.state_vector, self.cov_matrix = corrected_x, corrected_P
