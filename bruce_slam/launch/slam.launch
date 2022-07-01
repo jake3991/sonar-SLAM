@@ -11,7 +11,8 @@
     <!-- offline mode -->
     <group ns="bruce" unless="$(eval arg('file') == '')">
         <group ns="slam">
-            <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>
+        <!--
+            <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>-->
             <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" ns="feature_extraction"/>
             <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml" ns="gyro"/>
             <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen"
@@ -31,9 +32,10 @@
             </node>
 
             
-            <node pkg="bruce_slam" name="dead_reckoning" type="dead_reckoning_node.py" output="screen">
+            <!--<node pkg="bruce_slam" name="dead_reckoning" type="dead_reckoning_node.py" output="screen">
                 <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml"/>
             </node>
+            -->
             
 
             <node pkg="bruce_slam" name="feature_extraction" type="feature_extraction_node.py" output="screen">
