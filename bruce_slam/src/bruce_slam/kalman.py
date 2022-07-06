@@ -146,7 +146,7 @@ class KalmanNode(object):
 		[0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. ],
 		[0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. ],
-		[0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0.],
+		[0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0],  # yaw_new = yaw_old + gyro_rate
 		[0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. ],
@@ -198,9 +198,9 @@ class KalmanNode(object):
 		delta_yaw_meas = np.array([[delta_yaw],[0],[0]]) #we need the shape(3,1)
 
 		predicted_x, predicted_P = self.state_vector, self.cov_matrix
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, delta_yaw_meas, self.H_gyro, self.R_gyro)
+		self.state_vector, self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, delta_yaw_meas, self.H_gyro, self.R_gyro)
 
-		self.yaw_gyro = corrected_x[5][0]
+		self.yaw_gyro = self.yaw_gyro + self.state_vector[11][0]
 
 
 	def dvl_callback(self, dvl_msg:DVL)->None:
