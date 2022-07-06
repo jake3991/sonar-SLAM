@@ -46,7 +46,7 @@ class KalmanNode(object):
 		self.state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.old_state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.cov_matrix= np.diag([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-		self.yaw_gyro = 90.
+		self.delta_yaw_gyro = 90.
 
 		self.prev_time = None #previous reading time
 		self.dvl_error_timer = 0.0
@@ -85,6 +85,7 @@ class KalmanNode(object):
 		self.R_depth = rospy.get_param(ns + "R_depth")
 		self.dt_depth = rospy.get_param(ns + "dt_depth")
 
+		# Q is the Process Noise Uncertainty
 		self.Q = np.array([
 		[self.sigma_x, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
 		[0., self.sigma_y, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
@@ -111,14 +112,12 @@ class KalmanNode(object):
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC, Imu,callback=self.imu_callback,queue_size=250)
 		elif rospy.get_param(ns + "imu_version") == 2:
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC_MK_II, Imu, callback=self.imu_callback,queue_size=250)
+
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=250)
 		self.gyro_sub = rospy.Subscriber(GYRO_TOPIC, gyro, self.gyro_callback, queue_size=250)
 		self.depth_sub = rospy.Subscriber(DEPTH_TOPIC, Depth,callback=self.pressure_callback,queue_size=250)
 
-		self.pub = rospy.Publisher("state_vector_kalman",PoseStamped,queue_size=250)
 		self.odom_pub = rospy.Publisher(LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=250)
-		self.pub_yaw = rospy.Publisher("yaw_without_gyro",PoseStamped,queue_size=250)
-		self.pub_yaw_gyro = rospy.Publisher("yaw_with_gyro",PoseStamped,queue_size=250)
 
 		self.tf1 = tf.TransformBroadcaster()
 		self.dvl_max_velocity = rospy.get_param(ns + "dvl_max_velocity")
@@ -126,6 +125,9 @@ class KalmanNode(object):
 		self.pose = None
 
 		loginfo("Kalman Node is initialized")
+
+		self.pub_yaw_state_vector = rospy.Publisher("yaw_without_gyro",Float32,queue_size=250)
+		self.pub_delta_yaw_gyro = rospy.Publisher("yaw_with_gyro",Float32,queue_size=250)
 
 
 	def kalman_predict(self,previous_x:np.array,previous_P:np.array,dt:float):
@@ -140,13 +142,14 @@ class KalmanNode(object):
 			predicted_x (np.array): predicted estimation
 			predicted_P (np.array): predicted covariance matrix
 		"""
+		# State Transition Matrix A
 		A = np.array([
 		[1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. , 0. , 0. ],
 		[0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. , 0. ],
 		[0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. ],
 		[0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. ],
-		[0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0],  # yaw_new = yaw_old + gyro_rate
+		[0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0.],
 		[0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. ],
 		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. ],
@@ -166,8 +169,9 @@ class KalmanNode(object):
 		Args:
 			predicted_x (np.array): predicted state vector with kalman_predict()
 			predicted_P (np.array): predicted covariance matrix with kalman_predict()
-			z (np.array): measurement
-			H (np.array): may be H_dvl or H_imu
+			z (np.array): Output Vector (measurement)
+			H (np.array): Observation Matrix (H_dvl, H_imu, H_gyro, H_depth)
+			R (np.array): Measurement Uncertainty (R_dvl, R_imu, R_gyro, R_depth)
 
 		Returns:
 			corrected_x (np.array): corrected estimation
@@ -190,17 +194,17 @@ class KalmanNode(object):
 		# parse message and apply the offset matrix
 		dx,dy,dz = list(gyro_msg.delta)
 		arr = np.array([dx,dy,dz])
-		arfr = arr.dot(self.offset_matrix)
+		arr = arr.dot(self.offset_matrix)
 		delta_roll, delta_pitch, delta_yaw = arr
 
-		# subtract the rotation of the eath
+		# subtract the rotation of the earth
 		delta_yaw += (self.earth_rate / self.sensor_rate)
-		delta_yaw_meas = np.array([[delta_yaw],[0],[0]]) #we need the shape(3,1)
+		delta_yaw_meas = np.array([[delta_yaw],[0],[0]]) #Measurement of shape(3,1) to apply Kalman
 
 		predicted_x, predicted_P = self.state_vector, self.cov_matrix
-		self.state_vector, self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, delta_yaw_meas, self.H_gyro, self.R_gyro)
+		self.state_vector,self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, delta_yaw_meas, self.H_gyro, self.R_gyro)
 
-		self.yaw_gyro = self.yaw_gyro + self.state_vector[11][0]
+		self.delta_yaw_gyro = self.state_vector[11][0]
 
 
 	def dvl_callback(self, dvl_msg:DVL)->None:
@@ -273,15 +277,18 @@ class KalmanNode(object):
 		trans_x = self.state_vector[0][0] - self.old_state_vector[0][0]
 		trans_y = self.state_vector[1][0] - self.old_state_vector[1][0]
 
+		self.send_state_vector(self.state_vector[5][0])
+		self.send_yaw(self.delta_yaw_gyro + self.state_vector[5][0])
+
 		if self.use_gyro:
-			R = gtsam.Rot3.Ypr(self.yaw_gyro, self.state_vector[4][0], self.state_vector[3][0])
+			R = gtsam.Rot3.Ypr(self.delta_yaw_gyro+self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 		else:
 			R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 
-		if self.pose :
+		if self.pose:
 			local_point = gtsam.Point2(trans_x, trans_y)
 			if self.use_gyro:
-				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.yaw_gyro)
+				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.delta_yaw_gyro+self.state_vector[5][0])
 			else:
 				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 			point = pose2.transformFrom(local_point)
@@ -330,3 +337,13 @@ class KalmanNode(object):
 
 		self.tf1.sendTransform(
 			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom")
+
+
+	def send_state_vector(self,yaw):
+		msg = Float32()
+		msg.data = yaw
+		self.pub_yaw_state_vector.publish(msg)
+	def send_yaw(self,yaw):
+		msg = Float32()
+		msg.data = yaw
+		self.pub_delta_yaw_gyro.publish(msg)
