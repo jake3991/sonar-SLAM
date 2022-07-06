@@ -46,9 +46,7 @@ class DeadReckoningNode(object):
 		self.keyframe_duration = None
 		self.keyframe_translation = None
 		self.keyframe_rotation = None
-
 		self.dvl_error_timer = 0.0
-
 
 
 	def init_node(self, ns="~")->None:
@@ -57,7 +55,6 @@ class DeadReckoningNode(object):
 		Args:
 			ns (str, optional): The namespace of the node. Defaults to "~".
 		"""
-
 		# Parameters for Node
 		self.imu_pose = rospy.get_param(ns + "imu_pose")
 		self.imu_pose = n2g(self.imu_pose, "Pose3")
@@ -80,10 +77,10 @@ class DeadReckoningNode(object):
 
 		# Use point cloud for visualization
 		self.traj_pub = rospy.Publisher(
-			LOCALIZATION_TRAJ_TOPIC, PointCloud2, queue_size=10)
+			"traj_dead_reck", PointCloud2, queue_size=10)
 
 		self.odom_pub = rospy.Publisher(
-			LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=10)
+			"localization/dead_reck", Odometry, queue_size=10)
 
 		# are we using the FOG gyroscope?
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
@@ -98,22 +95,6 @@ class DeadReckoningNode(object):
 
 		self.tf = tf.TransformBroadcaster()
 
-		self.pub_roll = rospy.Publisher("roll",Float32,queue_size=250)
-		self.pub_pitch = rospy.Publisher("pitch",Float32,queue_size=250)
-		self.pub_yaw = rospy.Publisher("yaw",Float32,queue_size=250)
-
-
-		self.pub_xvel = rospy.Publisher("xvel",Float32,queue_size=250)
-		self.pub_yvel = rospy.Publisher("yvel",Float32,queue_size=250)
-		self.pub_zvel = rospy.Publisher("zvel",Float32,queue_size=250)
-
-		self.pub_x = rospy.Publisher("trans_x",Float32,queue_size=250)
-		self.pub_y = rospy.Publisher("trans_y",Float32,queue_size=250)
-		self.pub_z = rospy.Publisher("trans_z",Float32,queue_size=250)
-
-		self.pub_depth = rospy.Publisher("depth",Float32,queue_size=250)
-
-
 		loginfo("Localization node is initialized")
 
 
@@ -124,37 +105,8 @@ class DeadReckoningNode(object):
 			imu_msg (Imu): the message from VN100
 			dvl_msg (DVL): the message from the DVL
 		"""
-
-		#-------
-
-		# quaternion = (odom_msg.pose.pose.orientation.x,odom_msg.pose.pose.orientation.y,odom_msg.pose.pose.orientation.z,odom_msg.pose.pose.orientation.w)
-		# roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
-
-		quaternion = (imu_msg.orientation.x,imu_msg.orientation.y,imu_msg.orientation.z,imu_msg.orientation.w)
-		roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
-
-		msg_r = Float32()
-		# msg_r.data = self.pose.rotation().roll()
-		msg_r.data = roll_x
-		self.pub_roll.publish(msg_r)
-
-		msg_p = Float32()
-		# msg_p.data = self.pose.rotation().pitch()
-		msg_p.data = pitch_y
-		self.pub_pitch.publish(msg_p)
-
-		msg_y = Float32()
-		# msg_y.data = self.pose.rotation().yaw()
-		msg_y.data = yaw_z
-		self.pub_yaw.publish(msg_y)
-
-
-
-		#-------
-
 		#get the previous depth message
 		depth_msg = self.depth_cache.getLast()
-
 		#if there is no depth message, then skip this time step
 		if depth_msg is None:
 			return
@@ -170,26 +122,21 @@ class DeadReckoningNode(object):
 		rot = rot.compose(self.imu_rot.inverse())
 
 		#if we have no yaw yet, set this one as zero
-		#if self.imu_yaw0 is None:
-		#	self.imu_yaw0 = rot.yaw()
+		if self.imu_yaw0 is None:
+			self.imu_yaw0 = rot.yaw()
+			print('yaw0_dead_recko',self.imu_yaw0)
 
 		# Get a rotation matrix
+		# if use_gyro has the same value in Kalman and DeadReck, use this line
 		rot = gtsam.Rot3.Ypr(rot.yaw(), rot.pitch(), np.radians(90)+rot.roll())
+		# if use_gyro = True in Kalman and use_gyro = False in DeadReck, use this line:
+		# rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 
 		# parse the DVL message into an array of velocites
 		vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
 
-		#-----
-		msg_d = Float32()
-		msg_d.data = depth_msg.depth
-		self.pub_depth.publish(msg_d)
-
-		#----
-
-
 		# package the odom message and publish it
 		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)
-
 
 
 	def callback_with_gyro(self, imu_msg:Imu, dvl_msg:DVL, gyro_msg:GyroMsg)->None:
@@ -201,7 +148,6 @@ class DeadReckoningNode(object):
 			dvl_msg (DVL): the DVL message
 			gyro_msg (GyroMsg): the euler angles from the gyro
 		"""
-
 		# decode the gyro message
 		gyro_yaw = r2g(gyro_msg.pose.pose).rotation().yaw()
 
@@ -223,11 +169,6 @@ class DeadReckoningNode(object):
 		rot = rot.compose(self.imu_rot.inverse())
 
 
-
-		#if we have no yaw yet, set this one as zero
-		if self.imu_yaw0 is None:
-			self.imu_yaw0 = rot.yaw()
-
 		# Get a rotation matrix
 		rot = gtsam.Rot3.Ypr(gyro_yaw, rot.pitch(), rot.roll())
 
@@ -236,6 +177,7 @@ class DeadReckoningNode(object):
 
 		# package the odom message and publish it
 		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)
+
 
 	def send_odometry(self,vel:np.array,rot:gtsam.Rot3,dvl_time:rospy.Time,depth:float)->None:
 		"""Package the odometry given all the DVL, rotation matrix, and depth
@@ -269,32 +211,10 @@ class DeadReckoningNode(object):
 			self.dvl_error_timer = 0.0
 
 		if self.pose:
-
 			# figure out how far we moved in the body frame using the DVL message
 			dt = (dvl_time - self.prev_time).to_sec()
 			dv = (vel + self.prev_vel) * 0.5
 			trans = dv * dt
-
-			#-----
-
-			msg_vx = Float32()
-			msg_vx.data = dv[0]
-			self.pub_xvel.publish(msg_vx)
-
-			msg_vy = Float32()
-			msg_vy.data = dv[1]
-			self.pub_yvel.publish(msg_vy)
-
-			msg_x = Float32()
-			msg_x.data = trans[0]
-			self.pub_x.publish(msg_x)
-
-			msg_y = Float32()
-			msg_y.data = trans[1]
-			self.pub_y.publish(msg_y)
-
-
-			#-----
 
 			# get a rotation matrix with only roll and pitch
 			rotation_flat = gtsam.Rot3.Ypr(0, rot.pitch(), rot.roll())
@@ -316,10 +236,8 @@ class DeadReckoningNode(object):
 			)
 
 		else:
-
 			# init the pose
 			self.pose = gtsam.Pose3(rot, gtsam.Point3(0, 0, depth))
-
 
 		# log the this timesteps messages for next time
 		self.prev_time = dvl_time
@@ -346,6 +264,7 @@ class DeadReckoningNode(object):
 			self.keyframes.append((self.prev_time.to_sec(), self.pose))
 		self.publish_pose(new_keyframe)
 
+
 	def publish_pose(self, publish_traj:bool=False)->None:
 		"""Publish the pose
 
@@ -355,7 +274,6 @@ class DeadReckoningNode(object):
 		"""
 		if self.pose is None:
 			return
-
 
 		header = rospy.Header()
 		header.stamp = self.prev_time
@@ -387,7 +305,6 @@ class DeadReckoningNode(object):
 		self.tf.sendTransform(
 			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom"
 		)
-
 		if publish_traj:
 			traj = np.array([g2n(pose) for _, pose in self.keyframes])
 			traj_msg = ros_colorline_trajectory(traj)
