@@ -46,7 +46,7 @@ class KalmanNode(object):
 		self.state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.old_state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.cov_matrix= np.diag([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
-		self.delta_yaw_gyro = 90.
+		self.yaw_gyro = 90.
 
 		self.prev_time = None #previous reading time
 		self.dvl_error_timer = 0.0
@@ -114,7 +114,6 @@ class KalmanNode(object):
 			self.imu_sub = rospy.Subscriber(IMU_TOPIC_MK_II, Imu, callback=self.imu_callback,queue_size=250)
 
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=250)
-		self.gyro_sub = rospy.Subscriber(GYRO_TOPIC, gyro, self.gyro_callback, queue_size=250)
 		self.depth_sub = rospy.Subscriber(DEPTH_TOPIC, Depth,callback=self.pressure_callback,queue_size=250)
 
 		self.odom_pub = rospy.Publisher(LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=250)
@@ -122,6 +121,10 @@ class KalmanNode(object):
 		self.tf1 = tf.TransformBroadcaster()
 		self.dvl_max_velocity = rospy.get_param(ns + "dvl_max_velocity")
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
+
+		if self.use_gyro:
+			self.gyro_sub = rospy.Subscriber(GYRO_TOPIC, gyro, self.gyro_callback, queue_size=250)
+
 		self.pose = None
 
 		loginfo("Kalman Node is initialized")
@@ -204,7 +207,7 @@ class KalmanNode(object):
 		predicted_x, predicted_P = self.state_vector, self.cov_matrix
 		self.state_vector,self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, delta_yaw_meas, self.H_gyro, self.R_gyro)
 
-		self.delta_yaw_gyro = self.state_vector[11][0]
+		self.yaw_gyro = self.yaw_gyro + self.state_vector[11][0]
 
 
 	def dvl_callback(self, dvl_msg:DVL)->None:
@@ -278,17 +281,17 @@ class KalmanNode(object):
 		trans_y = self.state_vector[1][0] - self.old_state_vector[1][0]
 
 		self.send_state_vector(self.state_vector[5][0])
-		self.send_yaw(self.delta_yaw_gyro + self.state_vector[5][0])
+		self.send_yaw(self.yaw_gyro)
 
 		if self.use_gyro:
-			R = gtsam.Rot3.Ypr(self.delta_yaw_gyro+self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
+			R = gtsam.Rot3.Ypr(self.yaw_gyro, self.state_vector[4][0], self.state_vector[3][0])
 		else:
 			R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 
 		if self.pose:
 			local_point = gtsam.Point2(trans_x, trans_y)
 			if self.use_gyro:
-				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.delta_yaw_gyro+self.state_vector[5][0])
+				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.yaw_gyro)
 			else:
 				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 			point = pose2.transformFrom(local_point)
