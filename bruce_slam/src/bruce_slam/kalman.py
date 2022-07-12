@@ -36,7 +36,6 @@ from matplotlib.cbook import flatten
 from numpy import cos, sin
 
 
-
 class KalmanNode(object):
 	'''A class to support Kalman using DVL, IMU, FOG and Depth readings.
 	'''
@@ -44,11 +43,8 @@ class KalmanNode(object):
 	def __init__(self):
 		#state vector = (x,y,z,roll, pitch, yaw, x_dot,y_dot,z_dot,roll_dot,pitch_dot,yaw_dot)
 		self.state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
-		self.old_state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.cov_matrix= np.diag([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
 		self.yaw_gyro = 0.
-		self.prev_time = None #previous reading time
-		self.dvl_error_timer = 0.0
 
 
 	def init_node(self, ns="~")->None:
@@ -120,7 +116,8 @@ class KalmanNode(object):
 		if self.use_gyro:
 			self.gyro_sub = rospy.Subscriber(GYRO_TOPIC, gyro, self.gyro_callback, queue_size=250)
 
-		self.pose = None # TODO just make this zeros to start
+		R_init = gtsam.Rot3.Ypr(0.,0.,0.)
+		self.pose = gtsam.Pose3(R_init, gtsam.Point3(0, 0, 0))
 
 		loginfo("Kalman Node is initialized")
 
@@ -185,19 +182,15 @@ class KalmanNode(object):
 		Args:
 			gyro_msg (gyro): the euler angles from the gyro
 		"""
-
 		# parse message and apply the offset matrix
 		dx,dy,dz = list(gyro_msg.delta)
 		arr = np.array([dx,dy,dz])
 		arr = arr.dot(self.offset_matrix)
-		delta_yaw, delta_pitch, delta_roll = arr # TODO if we don't need roll and pitch make them _
-
+		delta_yaw, _, _ = arr
 		delta_yaw_meas = np.array([[delta_yaw],[0],[0]]) #Measurement of shape(3,1) to apply Kalman
 
-		predicted_x, predicted_P = self.state_vector, self.cov_matrix # TODO this line does not need to be here
-		self.state_vector,self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, delta_yaw_meas, self.H_gyro, self.R_gyro)
-
-		self.yaw_gyro += self.state_vector[11][0] # TODO clean spacing
+		self.state_vector,self.cov_matrix = self.kalman_correct(self.state_vector, self.cov_matrix, delta_yaw_meas, self.H_gyro, self.R_gyro)
+		self.yaw_gyro += self.state_vector[11][0]
 
 
 	def dvl_callback(self, dvl_msg:DVL)->None:
@@ -211,35 +204,11 @@ class KalmanNode(object):
 
 		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
 
-		# TODO clean this up, just make it so we do not to a kalman correction if the speed is high
-		#if the DVL message has any velocity above the max threhold do some error handling
+		# We do not do a kalman correction if the speed is high.
 		if np.any(np.abs(vel) > self.dvl_max_velocity):
-			if self.pose:
-				self.dvl_error_timer += (dvl_msg.header.stamp - self.prev_time).to_sec()
-				if self.dvl_error_timer > 5.0:
-					logwarn(
-						"DVL velocity ({:.1f}, {:.1f}, {:.1f}) exceeds max velocity {:.1f} for {:.1f} secs.".format(
-							vel[0],
-							vel[1],
-							vel[2],
-							self.dvl_max_velocity,
-							self.dvl_error_timer,
-						)
-					)
-				vel = self.prev_vel
-				dvl_measurement = np.array([[vel[0]], [vel[1]], [vel[2]]])
-				print('dvl correction')
-			else:
-				return
+			return
 		else:
-			self.dvl_error_timer = 0.0
-
-		self.prev_time = dvl_msg.header.stamp # TODO eliminate
-		self.prev_vel = vel # TODO eliminate
-
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_dvl) # TODO eliminate prediction here 
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, dvl_measurement, self.H_dvl, self.R_dvl)
-		self.state_vector, self.cov_matrix = corrected_x, corrected_P
+			self.state_vector,self.cov_matrix  = self.kalman_correct(self.state_vector, self.cov_matrix, dvl_measurement, self.H_dvl, self.R_dvl)
 
 
 	def pressure_callback(self,depth_msg:Depth):
@@ -248,10 +217,7 @@ class KalmanNode(object):
 			depth_msg (Depth): pressure
 		"""
 		depth = np.array([[depth_msg.depth],[0],[0]]) #we need the shape(3,1)
-
-		predicted_x, predicted_P = self.state_vector, self.cov_matrix # TODO eliminate this line
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, depth, self.H_depth, self.R_depth)
-		self.state_vector, self.cov_matrix = corrected_x, corrected_P # TODO eliminate this line
+		self.state_vector,self.cov_matrix = self.kalman_correct(self.state_vector, self.cov_matrix, depth, self.H_depth, self.R_depth)
 
 
 	def imu_callback(self, imu_msg:Imu)->None:
@@ -260,52 +226,38 @@ class KalmanNode(object):
 		Args:
 			imu_msg (Imu): the message from VN100
 		"""
-
-		# TODO put kalman prediction here
-
+		#Kalman prediction
+		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_imu)
+		#Measurement
 		quaternion = (imu_msg.orientation.x,imu_msg.orientation.y,imu_msg.orientation.z,imu_msg.orientation.w)
 		roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
 		euler_angle = np.array([[roll_x], [pitch_y], [yaw_z]])
+		#Kalman correction
+		self.state_vector,self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
 
-		predicted_x, predicted_P = self.state_vector, self.cov_matrix # TODO eliminate this line
-		corrected_x,corrected_P = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
-		self.state_vector, self.cov_matrix = corrected_x, corrected_P # TODO eliminate this line
-
-		trans_x = self.state_vector[0][0] - self.old_state_vector[0][0] # TODO what is going on here? Why not just use speed?
-		trans_y = self.state_vector[1][0] - self.old_state_vector[1][0]
+		trans_x = self.state_vector[6][0]*self.dt_imu
+		trans_y = self.state_vector[7][0]*self.dt_imu
+		local_point = gtsam.Point2(trans_x, trans_y)
 
 		if self.use_gyro:
-			R = gtsam.Rot3.Ypr(self.yaw_gyro,self.state_vector[4][0], np.radians(90)+self.state_vector[3][0])
+			R = gtsam.Rot3.Ypr(self.yaw_gyro,self.state_vector[4][0], self.state_vector[3][0])
 		else:
 			R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
-
-		if self.pose:
-			local_point = gtsam.Point2(trans_x, trans_y)
-			if self.use_gyro:
-				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.yaw_gyro)
-			else:
-				pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
-
-			point = pose2.transformFrom(local_point)
-			self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], 0))
+		if self.use_gyro:
+			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.yaw_gyro)
 		else:
-			self.pose = gtsam.Pose3(R, gtsam.Point3(0, 0, 0)) # TODO eliminate this line by
+			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 
-		self.old_state_vector = self.state_vector # TODO not sure we need this
-
+		point = pose2.transformFrom(local_point)
+		self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], 0))
 		self.send_odometry(imu_msg.header.stamp)
 
 
 	def send_odometry(self,t:float):
 		"""Publish the pose.
-
 		Args:
 			t (float): time from imu_msg
 		"""
-
-		if self.pose is None: # TODO if pose starts out as zeros you don't need this
-			return
-
 		header = rospy.Header()
 		header.stamp = t
 		header.frame_id = "odom"
@@ -316,19 +268,16 @@ class KalmanNode(object):
 
 		odom_msg.child_frame_id = "base_link"
 
-		odom_msg.twist.twist.linear.x = self.state_vector[6][0] # TODO is any of this helpful?
-		odom_msg.twist.twist.linear.y = self.state_vector[7][0]
-		odom_msg.twist.twist.linear.z = self.state_vector[8][0]
-		odom_msg.twist.twist.angular.x = self.state_vector[9][0]
-		odom_msg.twist.twist.angular.y = self.state_vector[10][0]
-		odom_msg.twist.twist.angular.z = self.state_vector[11][0]
+		odom_msg.twist.twist.linear.x = 0.
+		odom_msg.twist.twist.linear.y = 0.
+		odom_msg.twist.twist.linear.z = 0.
+		odom_msg.twist.twist.angular.x = 0.
+		odom_msg.twist.twist.angular.y = 0.
+		odom_msg.twist.twist.angular.z = 0.
 
 		self.odom_pub.publish(odom_msg)
 
-		pose_msg = odom_msg.pose.pose # TODO this is not used
-
-		p = odom_msg.pose.pose.position # TODO eliminate these lines
-		q = odom_msg.pose.pose.orientation
-
 		self.tf1.sendTransform(
-			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom")
+			(odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y, odom_msg.pose.pose.position.z),
+			(odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w),
+			header.stamp, "base_link", "odom")
