@@ -55,18 +55,6 @@ class KalmanNode(object):
 		"""
 		self.state_vector = rospy.get_param(ns + "state_vector")
 		self.cov_matrix = rospy.get_param(ns + "cov_matrix")
-		self.sigma_x = rospy.get_param(ns + "sigma_x")
-		self.sigma_y = rospy.get_param(ns + "sigma_y")
-		self.sigma_z = rospy.get_param(ns + "sigma_z")
-		self.sigma_roll = rospy.get_param(ns + "sigma_roll")
-		self.sigma_pitch = rospy.get_param(ns + "sigma_pitch")
-		self.sigma_yaw = rospy.get_param(ns + "sigma_yaw")
-		self.sigma_xd = rospy.get_param(ns + "sigma_xd")
-		self.sigma_yd = rospy.get_param(ns + "sigma_yd")
-		self.sigma_zd = rospy.get_param(ns + "sigma_zd")
-		self.sigma_rolld = rospy.get_param(ns + "sigma_rolld")
-		self.sigma_pitchd = rospy.get_param(ns + "sigma_pitchd")
-		self.sigma_yawd = rospy.get_param(ns + "sigma_yawd")
 		self.R_dvl = rospy.get_param(ns + "R_dvl")
 		self.dt_dvl = rospy.get_param(ns + "dt_dvl")
 		self.H_dvl = np.array(rospy.get_param(ns + "H_dvl"))
@@ -79,22 +67,8 @@ class KalmanNode(object):
 		self.H_depth = np.array(rospy.get_param(ns + "H_depth"))
 		self.R_depth = rospy.get_param(ns + "R_depth")
 		self.dt_depth = rospy.get_param(ns + "dt_depth")
-
-		# Q is the Process Noise Uncertainty
-		self.Q = np.array([
-		[self.sigma_x, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-		[0., self.sigma_y, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-		[0., 0., self.sigma_z, 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-		[0., 0., 0., self.sigma_roll, 0., 0., 0., 0., 0., 0., 0., 0.],
-		[0., 0., 0., 0., self.sigma_pitch, 0., 0., 0., 0., 0., 0., 0.],
-		[0., 0., 0., 0., 0., self.sigma_yaw, 0., 0., 0., 0., 0., 0.],
-		[0., 0., 0., 0., 0., 0., self.sigma_xd, 0., 0., 0., 0., 0.],
-		[0., 0., 0., 0., 0., 0., 0., self.sigma_yd, 0., 0., 0., 0.],
-		[0., 0., 0., 0., 0., 0., 0., 0., self.sigma_zd, 0., 0., 0.],
-		[0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_rolld, 0., 0.],
-		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_pitchd, 0.],
-		[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., self.sigma_yawd]])
-
+		self.Q = rospy.get_param(ns + "Q") # Process Noise Uncertainty
+		self.A_imu = rospy.get_param(ns + "A_imu") # State Transition Matrix
 		x = rospy.get_param(ns + "offset/x")
 		y = rospy.get_param(ns + "offset/y")
 		z = rospy.get_param(ns + "offset/z")
@@ -109,46 +83,33 @@ class KalmanNode(object):
 		self.depth_sub = rospy.Subscriber(DEPTH_TOPIC, Depth,callback=self.pressure_callback,queue_size=250)
 		self.odom_pub = rospy.Publisher(LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=250)
 
-		self.tf1 = tf.TransformBroadcaster()
 		self.dvl_max_velocity = rospy.get_param(ns + "dvl_max_velocity")
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
+		self.tf1 = tf.TransformBroadcaster()
 
 		if self.use_gyro:
 			self.gyro_sub = rospy.Subscriber(GYRO_TOPIC, gyro, self.gyro_callback, queue_size=250)
 
+		# Pose init
 		R_init = gtsam.Rot3.Ypr(0.,0.,0.)
 		self.pose = gtsam.Pose3(R_init, gtsam.Point3(0, 0, 0))
 
 		loginfo("Kalman Node is initialized")
 
 
-	def kalman_predict(self,previous_x:np.array,previous_P:np.array,dt:float):
+	def kalman_predict(self,previous_x:np.array,previous_P:np.array,A:np.array):
 		"""Project the state and the error covariance ahead.
 
 		Args:
 			previous_x (np.array): value of the previous state vector
 			previous_P (np.array): value of the previous covariance matrix
-			dt (float): may be dt_imu or dt_dvl
+			A (np.array): State Transition Matrix
 
 		Returns:
 			predicted_x (np.array): predicted estimation
 			predicted_P (np.array): predicted covariance matrix
 		"""
-		# State Transition Matrix A
-		A = np.array([
-		[1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. , 0. , 0. ],
-		[0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. , 0. , 0. ],
-		[0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ],
-		[0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. , 0. ],
-		[0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , dt, 0. ],
-		[0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. , 0.],
-		[0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. , 0. ],
-		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. , 0. ],
-		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. , 0. ],
-		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. , 0. ],
-		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. , 0. ],
-		[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. , 1. ]])
-
+		A = np.array(A)
 		predicted_P = A @ previous_P @ A.T + self.Q
 		predicted_x = A @ previous_x
 
@@ -199,9 +160,7 @@ class KalmanNode(object):
 		Args:
 			dvl_msg (DVL): the message from the DVL
 		"""
-
 		vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
-
 		dvl_measurement = np.array([[dvl_msg.velocity.x], [dvl_msg.velocity.y], [dvl_msg.velocity.z]])
 
 		# We do not do a kalman correction if the speed is high.
@@ -216,7 +175,7 @@ class KalmanNode(object):
 		Args:
 			depth_msg (Depth): pressure
 		"""
-		depth = np.array([[depth_msg.depth],[0],[0]]) #we need the shape(3,1)
+		depth = np.array([[depth_msg.depth],[0],[0]]) # We need the shape(3,1) for the correction
 		self.state_vector,self.cov_matrix = self.kalman_correct(self.state_vector, self.cov_matrix, depth, self.H_depth, self.R_depth)
 
 
@@ -226,26 +185,24 @@ class KalmanNode(object):
 		Args:
 			imu_msg (Imu): the message from VN100
 		"""
-		#Kalman prediction
-		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.dt_imu)
-		#Measurement
+		# Kalman prediction
+		predicted_x, predicted_P = self.kalman_predict(self.state_vector, self.cov_matrix, self.A_imu)
+		# Measurement
 		quaternion = (imu_msg.orientation.x,imu_msg.orientation.y,imu_msg.orientation.z,imu_msg.orientation.w)
 		roll_x, pitch_y, yaw_z = euler_from_quaternion(quaternion)
 		euler_angle = np.array([[roll_x], [pitch_y], [yaw_z]])
-		#Kalman correction
+		# Kalman correction
 		self.state_vector,self.cov_matrix = self.kalman_correct(predicted_x, predicted_P, euler_angle, self.H_imu, self.R_imu)
 
-		trans_x = self.state_vector[6][0]*self.dt_imu
-		trans_y = self.state_vector[7][0]*self.dt_imu
+		trans_x = self.state_vector[6][0]*self.dt_imu # x variation
+		trans_y = self.state_vector[7][0]*self.dt_imu # y variation
 		local_point = gtsam.Point2(trans_x, trans_y)
 
 		if self.use_gyro:
 			R = gtsam.Rot3.Ypr(self.yaw_gyro,self.state_vector[4][0], self.state_vector[3][0])
-		else:
-			R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
-		if self.use_gyro:
 			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.yaw_gyro)
-		else:
+		else: # We are not using the gyro
+			R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 
 		point = pose2.transformFrom(local_point)
