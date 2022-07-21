@@ -18,46 +18,6 @@ Panels:
     Name: Time
     SyncMode: 0
     SyncSource: Trajectory
-  - Class: graph_rviz_plugin/Line graph
-    Name: Line graph
-    export_directory: ""
-    legend_enable: true
-    refresh_freq: 40
-    topic_0_color: 0
-    topic_0_name: /altitude
-    topic_0_thickness: 1
-    topic_0_type: std_msgs/Float64
-    topic_1_color: 1
-    topic_1_name: /depth
-    topic_1_thickness: 1
-    topic_1_type: std_msgs/Float32
-    w_time: 10
-    window_time_enable: true
-    y_max: 5
-    y_min: 0
-    yaxis_rescale_auto: false
-  - Class: graph_rviz_plugin/Line graph
-    Name: Line graph
-    export_directory: ""
-    legend_enable: false
-    refresh_freq: 40
-    topic_0_color: 0
-    topic_0_name: /velocity_x
-    topic_0_thickness: 1
-    topic_0_type: std_msgs/Float64
-    topic_1_color: 1
-    topic_1_name: /velocity_y
-    topic_1_thickness: 1
-    topic_1_type: std_msgs/Float64
-    topic_2_color: 2
-    topic_2_name: /velocity_z
-    topic_2_thickness: 1
-    topic_2_type: std_msgs/Float64
-    w_time: 10
-    window_time_enable: true
-    y_max: 1
-    y_min: -1
-    yaxis_rescale_auto: false
   - Class: rviz/Displays
     Help Height: 0
     Name: Displays
