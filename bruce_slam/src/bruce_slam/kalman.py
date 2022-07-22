@@ -45,6 +45,7 @@ class KalmanNode(object):
 		self.state_vector= np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])
 		self.cov_matrix= np.diag([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
 		self.yaw_gyro = 0.
+		self.imu_yaw0 = None
 
 
 	def init_node(self, ns="~")->None:
@@ -81,7 +82,7 @@ class KalmanNode(object):
 
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=250)
 		self.depth_sub = rospy.Subscriber(DEPTH_TOPIC, Depth,callback=self.pressure_callback,queue_size=250)
-		self.odom_pub = rospy.Publisher(LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=250)
+		self.odom_pub_kalman = rospy.Publisher(LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=250)
 
 		self.dvl_max_velocity = rospy.get_param(ns + "dvl_max_velocity")
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
@@ -205,6 +206,11 @@ class KalmanNode(object):
 			R = gtsam.Rot3.Ypr(self.state_vector[5][0], self.state_vector[4][0], self.state_vector[3][0])
 			pose2 = gtsam.Pose2(self.pose.x(), self.pose.y(), self.pose.rotation().yaw())
 
+		#if we have no yaw yet, set this one as zero
+		if self.imu_yaw0 is None:
+			self.imu_yaw0 = R.yaw()
+			print('yaw0_kalman',self.imu_yaw0)
+
 		point = pose2.transformFrom(local_point)
 		self.pose = gtsam.Pose3(R, gtsam.Point3(point[0], point[1], 0))
 		self.send_odometry(imu_msg.header.stamp)
@@ -223,7 +229,7 @@ class KalmanNode(object):
 		odom_msg.header = header
 		odom_msg.pose.pose = g2r(self.pose)
 
-		odom_msg.child_frame_id = "base_link"
+		odom_msg.child_frame_id = "base_link_kalman"
 
 		odom_msg.twist.twist.linear.x = 0.
 		odom_msg.twist.twist.linear.y = 0.
@@ -232,9 +238,9 @@ class KalmanNode(object):
 		odom_msg.twist.twist.angular.y = 0.
 		odom_msg.twist.twist.angular.z = 0.
 
-		self.odom_pub.publish(odom_msg)
+		self.odom_pub_kalman.publish(odom_msg)
 
 		self.tf1.sendTransform(
 			(odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y, odom_msg.pose.pose.position.z),
 			(odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w),
-			header.stamp, "base_link", "odom")
+			header.stamp, "base_link_kalman", "odom")

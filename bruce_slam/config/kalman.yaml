@@ -6,7 +6,7 @@
 imu_version: 2
 
 # Are we using the Gyro? True if there is the FOG sensor
-use_gyro: True 
+use_gyro: True
 
 # Variable used to manage the error due to high velocity
 dvl_max_velocity: 0.5
