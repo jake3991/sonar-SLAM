@@ -80,7 +80,7 @@ class DeadReckoningNode(object):
 			"traj_dead_reck", PointCloud2, queue_size=10)
 
 		self.odom_pub = rospy.Publisher(
-			"localization/dead_reck", Odometry, queue_size=10)
+			LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=10)
 
 		# are we using the FOG gyroscope?
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
@@ -124,11 +124,10 @@ class DeadReckoningNode(object):
 		#if we have no yaw yet, set this one as zero
 		if self.imu_yaw0 is None:
 			self.imu_yaw0 = rot.yaw()
-			print('yaw0_dead_recko',self.imu_yaw0)
 
 		# Get a rotation matrix
 		# if use_gyro has the same value in Kalman and DeadReck, use this line
-		rot = gtsam.Rot3.Ypr(rot.yaw(), rot.pitch(), np.radians(90)+rot.roll())
+		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), rot.roll())
 		# if use_gyro = True in Kalman and use_gyro = False in DeadReck, use this line:
 		# rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 
