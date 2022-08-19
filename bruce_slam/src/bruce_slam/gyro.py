@@ -31,7 +31,7 @@ class GyroFilter(object):
 		x = rospy.get_param(ns + "offset/x")
 		y = rospy.get_param(ns + "offset/y")
 		z = rospy.get_param(ns + "offset/z")
-		self.offset_matrix = Rotation.from_euler("xyz",[x,y,z],degrees=True).as_dcm()
+		self.offset_matrix = Rotation.from_euler("xyz",[x,y,z],degrees=True).as_matrix()
 
 		# the speed the earth is rotating
 		self.latitude = np.radians(rospy.get_param(ns + "latitude"))
