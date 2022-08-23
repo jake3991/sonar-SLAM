@@ -9,7 +9,7 @@ imu_version: 1
 # USMMA/SLB data: 180
 # SUNY/ICRA: 90
 # Newest vehicle: 90
-imu_offset: 90
+imu_offset: 180
 
 # Are we using the Gyro? True if there is the FOG sensor
 use_gyro: False
