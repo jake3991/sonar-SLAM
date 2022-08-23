@@ -1,2 +1,4 @@
 *.vscode
 *.pyc
+bruce_slam/src/bruce_slam/__pycache__/
+bruce_slam/utils/__pycache__/
