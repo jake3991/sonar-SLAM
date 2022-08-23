@@ -5,19 +5,19 @@ import rospy
 
 # pull in the dead reckoning code
 from bruce_slam.utils.io import *
-from bruce_slam.dead_reckoning import DeadReckoningNode
+from bruce_slam.kalman import KalmanNode
 
 
 if __name__ == "__main__":
-    rospy.init_node("localization", log_level=rospy.INFO)
+    rospy.init_node("kalman", log_level=rospy.INFO)
 
-    node = DeadReckoningNode()
+    node = KalmanNode()
     node.init_node()
 
     args, _ = common_parser().parse_known_args()
     if not args.file:
-        loginfo("Start online localization...")
+        loginfo("Start online Kalman...")
         rospy.spin()
     else:
-        loginfo("Start offline localization...")
+        loginfo("Start offline Kalman...")
         offline(args)

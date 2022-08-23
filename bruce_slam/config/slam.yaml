@@ -17,7 +17,7 @@ point_resolution: 0.5
 
 # Sequential scan matching (SSM)
 ssm:
-  enable: True # is this module enabled?
+  enable: False # is this module enabled?
   min_points: 50 # the min number of points to try SSM
   max_translation: 3.0 # the max translation allowed
   max_rotation: deg(30) # the max rotation allowed
@@ -25,7 +25,7 @@ ssm:
 
 # Non-sequential scan matching
 nssm:
-  enable: True # is this module enabled?
+  enable: False # is this module enabled?
   min_st_sep: 8 # the size of the exclusion zone around the most recent keyframe
   min_points: 50 #min number of points
   max_translation: 10.0 # max translation allowed
