@@ -48,6 +48,9 @@ class DeadReckoningNode(object):
 		self.keyframe_rotation = None
 		self.dvl_error_timer = 0.0
 
+		# place holder for multi-robot SLAM
+		self.rov_id = ""
+
 
 	def init_node(self, ns="~")->None:
 		"""Init the node, fetch all paramaters from ROS

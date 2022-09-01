@@ -72,6 +72,9 @@ class FeatureExtraction(object):
         #which vehicle is being used
         self.compressed_images = True
 
+        # place holder for the multi-robot system
+        self.rov_id = ""
+
     def configure(self):
         '''Calls the CFAR class constructor for the featureExtraction class
         '''

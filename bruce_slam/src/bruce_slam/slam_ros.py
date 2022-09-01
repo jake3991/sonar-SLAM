@@ -122,9 +122,10 @@ class SLAMNode(SLAM):
 
         #get the ICP configuration from the yaml fukle
         icp_config = rospy.get_param(ns + "icp_config")
-        #icp_ssm_config = rospy.get_param(ns + "icp_ssm_config")
         self.icp.loadFromYaml(icp_config)
-        #self.icp_ssm.loadFromYaml(icp_ssm_config)
+        
+        # define the robot ID this is not used here, extended in multi-robot SLAM
+        self.rov_id = ""
 
         #call the configure function
         self.configure()
@@ -231,7 +232,10 @@ class SLAMNode(SLAM):
         #define a pose with covariance message 
         pose_msg = PoseWithCovarianceStamped()
         pose_msg.header.stamp = self.current_frame.time
-        pose_msg.header.frame_id = "map"
+        if self.rov_id == "":
+            pose_msg.header.frame_id = "map"
+        else:
+            pose_msg.header.frame_id = self.rov_id + "_map"
         pose_msg.pose.pose = g2r(self.current_frame.pose3)
 
         cov = 1e-4 * np.identity(6, np.float32)
@@ -255,7 +259,10 @@ class SLAMNode(SLAM):
         odom_msg = Odometry()
         odom_msg.header = pose_msg.header
         odom_msg.pose.pose = pose_msg.pose.pose
-        odom_msg.child_frame_id = "base_link"
+        if self.rov_id == "":
+            odom_msg.child_frame_id = "base_link"
+        else:
+            odom_msg.child_frame_id = self.rov_id + "_base_link"
         odom_msg.twist.twist = self.current_frame.twist
         self.odom_pub.publish(odom_msg)
 
@@ -299,7 +306,10 @@ class SLAMNode(SLAM):
         #convert to a ros color line
         traj_msg = ros_colorline_trajectory(poses)
         traj_msg.header.stamp = self.current_keyframe.time
-        traj_msg.header.frame_id = "map"
+        if self.rov_id == "":
+            traj_msg.header.frame_id = "map"
+        else:
+            traj_msg.header.frame_id = self.rov_id + "_map"
         self.traj_pub.publish(traj_msg)
 
     def publish_point_cloud(self)->None:
@@ -345,5 +355,8 @@ class SLAMNode(SLAM):
         #convert the point cloud to a ros message and publish
         cloud_msg = n2r(sampled_xyzi, "PointCloudXYZI")
         cloud_msg.header.stamp = self.current_keyframe.time
-        cloud_msg.header.frame_id = "map"
+        if self.rov_id == "":
+            cloud_msg.header.frame_id = "map"
+        else:
+            cloud_msg.header.frame_id = self.rov_id + "_map"
         self.cloud_pub.publish(cloud_msg)
