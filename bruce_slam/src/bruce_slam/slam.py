@@ -8,6 +8,7 @@ from scipy.optimize import shgo
 from itertools import combinations
 from collections import defaultdict
 from sklearn.covariance import MinCovDet
+import time as time_pkg
 
 from .sonar import OculusProperty
 from .utils.conversions import *
@@ -341,14 +342,20 @@ class SLAM(object):
 
         # check each of the provided guesses with ICP
         sample_transforms = []
+        start = time_pkg.time()
         for g in guesses:
             g = g.matrix()
             message, T = self.icp.compute(source_points, target_points, g)
+
             # only keep what works
             if message == "success":
                 x, y = T[:2, 2]
                 theta = np.arctan2(T[1, 0], T[0, 0])
                 sample_transforms.append((x, y, theta))
+
+            # enforce a max run time for this loop
+            if time_pkg.time() - start >= 2.0:
+                break
 
         # check if we have enough transforms to get a covariance
         sample_transforms = np.array(sample_transforms)
@@ -1008,10 +1015,6 @@ class SLAM(object):
         # init the search with a global ICP call
         ret = self.initialize_nonsequential_scan_matching()
 
-        # TODO remove
-        if self.save_fig:
-            ret.plot("step-{}-nssm-sampling.png".format(self.current_key - 1))
-
         # if the global ICP call did not work, return
         if not ret.status:
             return
@@ -1019,18 +1022,10 @@ class SLAM(object):
         # package the global ICP call result
         ret2 = ICPResult(ret, self.nssm_params.cov_samples > 0)
 
-        # TODO remove
-        # sample_deltas = np.random.uniform(-1, 1, (self.nssm_params.cov_samples, 3))
-        # sample_deltas[:, 0] *= self.icp_odom_sigmas[0] * 10
-        # sample_deltas[:, 1] *= self.icp_odom_sigmas[1] * 10
-        # sample_deltas[:, 2] *= self.icp_odom_sigmas[2] * 10
-        # ret2.initial_transforms = [
-        #     ret2.initial_transform.compose(n2g(sample_delta, "Pose2"))
-        #     for sample_delta in sample_deltas
-        # ]
-
         # Compute ICP here with a timer
         with CodeTimer("SLAM - nonsequential scan matching - ICP"):
+
+            
 
             # if possible, compute ICP with a covariance matrix
             if self.nssm_params.initialization and self.nssm_params.cov_samples > 0:
@@ -1051,6 +1046,7 @@ class SLAM(object):
                     ret2.status.description = "{} samples".format(
                         len(ret2.sample_transforms)
                     )
+
             # otherwise use standard ICP
             else:
                 message, odom = self.compute_icp(
@@ -1088,31 +1084,9 @@ class SLAM(object):
             if overlap < self.nssm_params.min_points:
                 ret2.status = STATUS.NOT_ENOUGH_OVERLAP
             ret2.status.description = str(overlap)
-
+            
         # apply geometric verification, in this case PCM
         if ret2.status:
-
-            # TODO remove
-            if self.save_data:
-                ret2.save("step-{}-nssm-icp.npz".format(self.current_key - 1))
-
-            # TODO remove
-            # # DCS
-            # if ret2.cov is not None:
-            #     icp_odom_model = self.create_robust_full_noise_model(ret2.cov)
-            # else:
-            #     icp_odom_model = self.create_robust_noise_model(self.icp_odom_sigmas)
-            # factor = gtsam.BetweenFactorPose2(
-            #     X(ret2.target_key),
-            #     X(ret2.source_key),
-            #     ret2.estimated_transform,
-            #     icp_odom_model,
-            # )
-            # self.graph.add(factor)
-            # self.keyframes[ret2.source_key].constraints.append(
-            #     (ret2.target_key, ret2.estimated_transform)
-            # )
-            # ret2.inserted = True
 
             # update the pcm queue
             while (
@@ -1124,7 +1098,7 @@ class SLAM(object):
 
             # log the newest loop closure into the pcm queue and check PCM
             self.nssm_queue.append(ret2)
-            pcm = self.verify_pcm(self.nssm_queue)
+            pcm = self.verify_pcm(self.nssm_queue,self.min_pcm)
 
             # if the PCM result has no loop closures for us, the list pcm will be empty
             # loop over any results and add them to the graph
@@ -1154,10 +1128,6 @@ class SLAM(object):
                         (ret2.target_key, ret2.estimated_transform)
                     )
                     ret2.inserted = True  # update the status of this loop closure, don't add a loop twice
-
-        # TODO remove
-        if self.save_fig:
-            ret2.plot("step-{}-nssm-icp.png".format(self.current_key - 1))
 
         return ret2
 
@@ -1270,18 +1240,19 @@ class SLAM(object):
             if ret.inserted:
                 ret.estimated_transform = ret.target_pose.between(ret.source_pose)
 
-    def verify_pcm(self, queue: list) -> list:
+    def verify_pcm(self, queue: list, min_pcm_value: int) -> list:
         """Get the pairwise consistent measurements.
 
         Args:
             queue (list): the list of loop closures being checked.
+            min_pcm_value (int): the min pcm value we want
 
         Returns:
             list: returns any pairwise consistent loops. We return a list of indexes in the provided queue.
         """
 
         # check if we have enough loops to bother
-        if len(queue) < self.min_pcm:
+        if len(queue) < min_pcm_value:
             return []
 
         # convert the loops to a consistentcy graph=
@@ -1310,7 +1281,7 @@ class SLAM(object):
 
         # sort and return only the largest set, also checking that the set is large enough
         maximum_clique = sorted(maximal_cliques, key=len, reverse=True)[0]
-        if len(maximum_clique) < self.min_pcm:
+        if len(maximum_clique) < min_pcm_value:
             return []
 
         return maximum_clique

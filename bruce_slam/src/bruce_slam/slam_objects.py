@@ -67,6 +67,11 @@ class Keyframe(object):
         dr_pose3: gtsam.Pose3,
         points: np.array = np.zeros((0, 2), np.float32),
         cov: np.array = None,
+        source_pose=None, 
+        between_pose=None, 
+        index=None, 
+        vin=None, 
+        index_kf=None
     ):
         """Class constructor for a keyframe
 
@@ -113,6 +118,21 @@ class Keyframe(object):
         self.poseTrue = None  # record the true pose from gazebo, simulation only
 
         self.sub_frames = []
+
+        self.submap = None # multi-robot slam data
+        self.ring_key = None
+        self.context = None
+        self.redo_submap = False
+        self.source_pose = source_pose
+        self.between_pose = between_pose
+        self.index = index
+        self.guess_pose = None
+        self.vin = vin
+        self.index_kf = index_kf
+        self.scan_match_prediction = None
+        self.scan_match_prediction_status = False
+        self.scan_match_eig_max = None
+        self.bits = None
 
     def update(self, new_pose: gtsam.Pose2, new_cov: np.array = None) -> None:
         """Update a keyframe following a SLAM update, pass in the new pose and covariance

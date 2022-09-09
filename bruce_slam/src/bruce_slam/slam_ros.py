@@ -293,6 +293,8 @@ class SLAMNode(SLAM):
             #conver this list to a series of multi-colored lines and publish
             link_msg = ros_constraints(links)
             link_msg.header.stamp = self.current_keyframe.time
+            if self.rov_id != "":
+                link_msg.header.frame_id = self.rov_id + "_map"
             self.constraint_pub.publish(link_msg)
 
 
