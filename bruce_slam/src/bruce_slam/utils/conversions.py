@@ -9,6 +9,8 @@ from sensor_msgs.msg import Image, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from geometry_msgs.msg import Pose
 import ros_numpy
+import struct
+
 
 from .topics import *
 
@@ -244,6 +246,32 @@ def r2n(ros_msg:OculusPing) -> np.array:
             "Not implemented from {} to numpy".format(str(type(ros_msg)))
         )
 
+def build_rgb_cloud(arr:np.array) -> pc2:
+    """Convert an array of [xyz,rgb] to a ROS point cloud with colors
+
+    Args:
+        arr (np.array): the input array
+
+    Returns:
+        pc2: a ROS point cloud 2
+    """
+
+    # define the point cloud fields and header
+    header = rospy.Header()
+    fields = [pc2.PointField('x', 0, pc2.PointField.FLOAT32, 1),
+            pc2.PointField('y', 4, pc2.PointField.FLOAT32, 1),
+            pc2.PointField('z', 8, pc2.PointField.FLOAT32, 1),
+            pc2.PointField('rgb', 12, pc2.PointField.UINT32, 1),
+            ]
+
+    # parse out and convert the RGB values to RGBA
+    points = []
+    for row in arr:
+        r, g, b = int(row[2]), int(row[3]), int(row[4])
+        rgb = struct.unpack('I', struct.pack('BBBB', b, g, r, 255))[0]
+        points.append( [row[0], row[1], 0., rgb] )
+    return pc2.create_cloud(header, fields, points)
+    
 
 def n2r(numpy_arr:np.array, msg:any) -> any:
     """Package a nump array as the target ros message type in msg
@@ -278,5 +306,7 @@ def n2r(numpy_arr:np.array, msg:any) -> any:
             pc2.PointField("i", 12, pc2.PointField.FLOAT32, 1),
         ]
         return pc2.create_cloud(header, fields, np.array(numpy_arr))
+    elif msg == "PointCloudXYZRGB":
+        return build_rgb_cloud(numpy_arr)
     else:
         raise NotImplementedError("Not implemented from numpy array to {}".format(msg))
