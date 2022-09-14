@@ -137,6 +137,9 @@ colors = {
     "red": ColorRGBA(1.0, 0.0, 0.0, 1.0),
     "blue": ColorRGBA(0.0, 0.0, 1.0, 1.0),
     "green": ColorRGBA(0.0, 1.0, 0.0, 1.0),
+    "white": ColorRGBA(1.0,1.0,1.0,1.0),
+    "yellow": ColorRGBA(1.0,1.0,0.0,1.0),
+    "light_blue":ColorRGBA(.44,.62,.8118,1.0)
 }
 
 
