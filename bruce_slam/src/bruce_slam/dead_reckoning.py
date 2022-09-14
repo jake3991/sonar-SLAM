@@ -130,7 +130,7 @@ class DeadReckoningNode(object):
 
 		# Get a rotation matrix
 		# if use_gyro has the same value in Kalman and DeadReck, use this line
-		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), rot.roll())
+		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 		# if use_gyro = True in Kalman and use_gyro = False in DeadReck, use this line:
 		# rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 

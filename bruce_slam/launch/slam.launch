@@ -1,7 +1,7 @@
 <launch>
     <arg name="rviz" default="true"/>
     <arg name="enable_slam" default="true"/>
-    <arg name="kalman_dead_reckoning" default="true"/>
+    <arg name="kalman_dead_reckoning" default="false"/>
 
     <!-- offline mode -->
     <arg name="file" default=""/>
