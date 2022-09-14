@@ -213,7 +213,7 @@ class Keyframe(object):
         """
 
         # check if there are actually any points
-        if len(points) == 0:
+        if len(points) == 0 or points.shape[1] != 3:
             return np.empty_like(points, np.float32)
 
         # convert the pose to matrix format
