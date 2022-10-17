@@ -81,6 +81,9 @@ class DeadReckoningNode(object):
 		self.odom_pub = rospy.Publisher(
 			LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=10)
 
+		self.odom_pub_2 = rospy.Publisher(
+			LOCALIZATION_ODOM_TOPIC_II, Odometry, queue_size=10)
+
 		# are we using the FOG gyroscope?
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
 
@@ -241,6 +244,7 @@ class DeadReckoningNode(object):
 		odom_msg.twist.twist.angular.y = 0
 		odom_msg.twist.twist.angular.z = 0
 		self.odom_pub.publish(odom_msg)
+		self.odom_pub_2.publish(odom_msg)
 
 		p = odom_msg.pose.pose.position
 		q = odom_msg.pose.pose.orientation

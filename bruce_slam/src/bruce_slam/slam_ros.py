@@ -89,6 +89,7 @@ class SLAMNode(SLAM):
         #define the subsrcibing topics
         self.feature_sub = Subscriber(SONAR_FEATURE_TOPIC, PointCloud2)
         self.odom_sub = Subscriber(LOCALIZATION_ODOM_TOPIC, Odometry)
+        self.odom_sub_repub = rospy.Subscriber(LOCALIZATION_ODOM_TOPIC_II, Odometry, self.odom_callback)
 
         #define the sync policy
         self.time_sync = ApproximateTimeSynchronizer(
@@ -145,6 +146,29 @@ class SLAMNode(SLAM):
         
         self.oculus.configure(ping)
         self.sonar_sub.unregister()
+
+    @add_lock
+    def odom_callback(self, odom_msg: Odometry) -> None:
+        """Handle an incoming odometry message. Here we append the odom
+        pose to the current SLAM keyframe to get live pose publishing. 
+        We do this here and not in the SLAM callback to avoid any long
+        pauses in pose publishing. 
+
+        Args:
+            odom_msg (Odometry): The incoming pose from the odometry
+        """
+
+        if self.keyframes:
+            time = odom_msg.header.stamp
+            dr_pose3 = r2g(odom_msg.pose.pose)
+            frame = Keyframe(False, time, dr_pose3)
+            dr_odom = self.current_keyframe.dr_pose.between(frame.dr_pose)
+            pose = self.current_keyframe.pose.compose(dr_odom)
+            #set the frames twist
+            frame.twist = odom_msg.twist.twist
+            frame.update(pose)
+            self.current_frame = frame
+            self.publish_pose()
 
     @add_lock
     def SLAM_callback(self, feature_msg:PointCloud2, odom_msg:Odometry)->None:
@@ -207,12 +231,12 @@ class SLAMNode(SLAM):
 
             #if loop closures are enabled
             #nonsequential scan matching is True (a loop closure occured) update graph again
-            if self.nssm_params.enable  and self.add_nonsequential_scan_matching():
+            if self.nssm_params.enable and self.add_nonsequential_scan_matching():
                 self.update_factor_graph()
+
+            # publish info
+            self.publish_all()
             
-        #update current time step and publish the topics
-        self.current_frame = frame
-        self.publish_all()
         self.lock.release()
 
     def publish_all(self)->None:
@@ -222,11 +246,11 @@ class SLAMNode(SLAM):
         if not self.keyframes:
             return
 
-        self.publish_pose()
-        if self.current_frame.status:
-            self.publish_trajectory()
-            self.publish_constraint()
-            self.publish_point_cloud()
+        # self.publish_pose()
+        # if self.current_frame.status:
+        self.publish_trajectory()
+        self.publish_constraint()
+        self.publish_point_cloud()
 
     def publish_pose(self)->None:
         """Append dead reckoning from Localization to SLAM estimate to achieve realtime TF.
