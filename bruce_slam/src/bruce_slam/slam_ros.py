@@ -54,6 +54,9 @@ class SLAMNode(SLAM):
         self.odom_sigmas = rospy.get_param(ns + "odom_sigmas")
         self.icp_odom_sigmas = rospy.get_param(ns + "icp_odom_sigmas")
 
+        #max ICP run time
+        self.max_icp_cov_run_time = rospy.get_param(ns + "max_icp_cov_run_time")
+
         #resultion for map downsampling
         self.point_resolution = rospy.get_param(ns + "point_resolution")
 

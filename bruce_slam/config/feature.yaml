@@ -1,18 +1,18 @@
 # Constant false alarm rate (CFAR) params for feature extraction
 CFAR:
-  Ntc: 40 # number of training cells
+  Ntc: 20 # number of training cells
   Ngc: 10 # number of guard cells
-  Pfa: 0.1 #false alarm rate
-  rank: 10 # matrix rank
+  Pfa: 0.2 #false alarm rate
+  rank: 2 # matrix rank
   alg: 'SOCA' # method of CFAR, see cfar.cpp for options. SOCA is best.
 
 # point cloud filtering params
 filter:
-  threshold: 65 # the min CFAR response to be added to the point cloud
+  threshold: 140 # the min CFAR response to be added to the point cloud
   resolution: 0.5 # voxel downsampling res
   radius: 1.0 # outlier rejection radius
   min_points: 5 # outlier rejection min points
-  skip: 1 # how often to skip a point cloud, use 1
+  skip: 5 # how often to skip a point cloud, use 1
 
 # the vis params
 visualization:

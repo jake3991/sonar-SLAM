@@ -115,6 +115,9 @@ class SLAM(object):
         self.save_fig = False
         self.save_data = False
 
+        # max time we wait for ICP with covariance
+        self.max_icp_cov_run_time = 2.0
+
     @property
     def current_keyframe(self) -> Keyframe:
         """Get the current keyframe from the SLAM solution
@@ -354,7 +357,7 @@ class SLAM(object):
                 sample_transforms.append((x, y, theta))
 
             # enforce a max run time for this loop
-            if time_pkg.time() - start >= 2.0:
+            if time_pkg.time() - start >= self.max_icp_cov_run_time:
                 break
 
         # check if we have enough transforms to get a covariance
@@ -1024,8 +1027,6 @@ class SLAM(object):
 
         # Compute ICP here with a timer
         with CodeTimer("SLAM - nonsequential scan matching - ICP"):
-
-            
 
             # if possible, compute ICP with a covariance matrix
             if self.nssm_params.initialization and self.nssm_params.cov_samples > 0:

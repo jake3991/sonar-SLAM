@@ -1,6 +1,6 @@
 # how often to add keyframes, this can be varied but between 1 and 4 meters is best
 keyframe_duration: 1.0
-keyframe_translation: 3.0
+keyframe_translation: 2.0
 keyframe_rotation: deg(30)
 
 # define the noise models
@@ -14,6 +14,9 @@ icp_config: $(find bruce_slam)/config/icp.yaml
 
 # Downsample points for ICP/publishing
 point_resolution: 0.5
+
+# Max ICP run time
+max_icp_cov_run_time: 2.0
 
 # Sequential scan matching (SSM)
 ssm:

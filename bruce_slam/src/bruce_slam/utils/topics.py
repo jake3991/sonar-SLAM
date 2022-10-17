@@ -7,15 +7,10 @@ from sonar_oculus.msg import OculusPing
 """
 Topics for the bruce_slam project
 """
-IMU_TOPIC = "/vn100/imu/raw"
-IMU_TOPIC_MK_II = "/vectornav/IMU"
-DVL_TOPIC = "/rti/body_velocity/raw"
-DEPTH_TOPIC = "/bar30/depth/raw"
-SONAR_TOPIC = "/sonar_oculus_node/M750d/ping"
-SONAR_TOPIC_UNCOMPRESSED = "/sonar_oculus_node/ping"
-SONAR_VERTICAL_TOPIC = "/sonar_oculus_node/M1200d/ping"
-GYRO_TOPIC = "/gyro"
-
+IMU_TOPIC = "/rexrov/imu"
+DVL_TOPIC = "/rexrov/dvl_twist"
+DEPTH_TOPIC = "/rexrov/pressure"
+SONAR_TOPIC = "/rexrov/forward_sonar_horiz/raw_sonar"
 
 SLAM_NS = "/bruce/slam/"
 GYRO_INTEGRATION_TOPIC = SLAM_NS + "gyro_integrated"

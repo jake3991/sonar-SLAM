@@ -6,8 +6,9 @@ import numpy as np
 
 # ros-python imports
 from nav_msgs.msg import Odometry
-from sensor_msgs.msg import PointCloud2, Imu
+from sensor_msgs.msg import PointCloud2, Imu, FluidPressure
 from message_filters import ApproximateTimeSynchronizer, Cache, Subscriber
+from geometry_msgs.msg import TwistWithCovarianceStamped
 
 # import custom messages
 from kvh_gyro.msg import gyro as GyroMsg
@@ -68,15 +69,10 @@ class DeadReckoningNode(object):
 		self.keyframe_rotation = rospy.get_param(ns + "keyframe_rotation")
 
 		# Subscribers and caches
-		self.dvl_sub = Subscriber(DVL_TOPIC, DVL)
-		self.gyro_sub = Subscriber(GYRO_INTEGRATION_TOPIC, Odometry)
-		self.depth_sub = Subscriber(DEPTH_TOPIC, Depth)
+		self.imu_sub = Subscriber(IMU_TOPIC, Imu)
+		self.dvl_sub = Subscriber(DVL_TOPIC, TwistWithCovarianceStamped)
+		self.depth_sub = Subscriber(DEPTH_TOPIC, FluidPressure)
 		self.depth_cache = Cache(self.depth_sub, 1)
-
-		if rospy.get_param(ns + "imu_version") == 1:
-			self.imu_sub = Subscriber(IMU_TOPIC, Imu)
-		elif rospy.get_param(ns + "imu_version") == 2:
-			self.imu_sub = Subscriber(IMU_TOPIC_MK_II, Imu)
 
 		# Use point cloud for visualization
 		self.traj_pub = rospy.Publisher(
@@ -89,12 +85,8 @@ class DeadReckoningNode(object):
 		self.use_gyro = rospy.get_param(ns + "use_gyro")
 
 		# define the callback, are we using the gyro or the VN100?
-		if self.use_gyro:
-			self.ts = ApproximateTimeSynchronizer([self.imu_sub, self.dvl_sub, self.gyro_sub], 300, .1)
-			self.ts.registerCallback(self.callback_with_gyro)
-		else:
-			self.ts = ApproximateTimeSynchronizer([self.imu_sub, self.dvl_sub], 200, .1)
-			self.ts.registerCallback(self.callback)
+		self.ts = ApproximateTimeSynchronizer([self.imu_sub, self.dvl_sub], 200, .1)
+		self.ts.registerCallback(self.callback)
 
 		self.tf = tf.TransformBroadcaster()
 
@@ -108,17 +100,16 @@ class DeadReckoningNode(object):
 			imu_msg (Imu): the message from VN100
 			dvl_msg (DVL): the message from the DVL
 		"""
+
 		#get the previous depth message
 		depth_msg = self.depth_cache.getLast()
+
 		#if there is no depth message, then skip this time step
 		if depth_msg is None:
 			return
 
-		#check the delay between the depth message and the DVL
-		dd_delay = (depth_msg.header.stamp - dvl_msg.header.stamp).to_sec()
-		#print(dd_delay)
-		if abs(dd_delay) > 1.0:
-			logdebug("Missing depth message for {}".format(dd_delay))
+		# convert fluid pressure to depth
+		depth =  (depth_msg.fluid_pressure - 101.375) * (10 / 101.375)
 
 		#convert the imu message from msg to gtsam rotation object
 		rot = r2g(imu_msg.orientation)
@@ -129,57 +120,13 @@ class DeadReckoningNode(object):
 			self.imu_yaw0 = rot.yaw()
 
 		# Get a rotation matrix
-		# if use_gyro has the same value in Kalman and DeadReck, use this line
-		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
-		# if use_gyro = True in Kalman and use_gyro = False in DeadReck, use this line:
-		# rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
+		rot = gtsam.Rot3.Ypr(-1*rot.yaw() - self.imu_yaw0, rot.pitch(), rot.roll())
 
 		# parse the DVL message into an array of velocites
-		vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
+		vel = np.array([dvl_msg.twist.twist.linear.z, -1 * dvl_msg.twist.twist.linear.y, dvl_msg.twist.twist.linear.x])
 
 		# package the odom message and publish it
-		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)
-
-
-	def callback_with_gyro(self, imu_msg:Imu, dvl_msg:DVL, gyro_msg:GyroMsg)->None:
-		"""Handle the dead reckoning state estimate using the fiber optic gyro. Here we use the
-		Gyro as a means of getting the yaw estimate, roll and pitch are still VN100.
-
-		Args:
-			imu_msg (Imu): the vn100 imu message
-			dvl_msg (DVL): the DVL message
-			gyro_msg (GyroMsg): the euler angles from the gyro
-		"""
-		# decode the gyro message
-		gyro_yaw = r2g(gyro_msg.pose.pose).rotation().yaw()
-
-		#get the previous depth message
-		depth_msg = self.depth_cache.getLast()
-
-		#if there is no depth message, then skip this time step
-		if depth_msg is None:
-			return
-
-		#check the delay between the depth message and the DVL
-		dd_delay = (depth_msg.header.stamp - dvl_msg.header.stamp).to_sec()
-		#print(dd_delay)
-		if abs(dd_delay) > 1.0:
-			logdebug("Missing depth message for {}".format(dd_delay))
-
-		#convert the imu message from msg to gtsam rotation object
-		rot = r2g(imu_msg.orientation)
-		rot = rot.compose(self.imu_rot.inverse())
-
-
-		# Get a rotation matrix
-		rot = gtsam.Rot3.Ypr(gyro_yaw, rot.pitch(), rot.roll())
-
-		#parse the DVL message into an array of velocites
-		vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
-
-		# package the odom message and publish it
-		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)
-
+		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth)
 
 	def send_odometry(self,vel:np.array,rot:gtsam.Rot3,dvl_time:rospy.Time,depth:float)->None:
 		"""Package the odometry given all the DVL, rotation matrix, and depth
@@ -217,13 +164,6 @@ class DeadReckoningNode(object):
 			dt = (dvl_time - self.prev_time).to_sec()
 			dv = (vel + self.prev_vel) * 0.5
 			trans = dv * dt
-
-			# get a rotation matrix with only roll and pitch
-			rotation_flat = gtsam.Rot3.Ypr(0, rot.pitch(), rot.roll())
-
-			# transform our movement to the global frame
-			#trans[2] = -trans[2]
-			#trans = trans.dot(rotation_flat.matrix())
 
 			# propagate our movement forward using the GTSAM utilities
 			local_point = gtsam.Point2(trans[0], trans[1])

@@ -75,6 +75,8 @@ class FeatureExtraction(object):
         # place holder for the multi-robot system
         self.rov_id = ""
 
+        self.img_id = 0
+
     def configure(self):
         '''Calls the CFAR class constructor for the featureExtraction class
         '''
@@ -114,12 +116,8 @@ class FeatureExtraction(object):
         self.color = rospy.get_param(ns + "visualization/color")
 
         #sonar subsciber
-        if self.compressed_images:
-            self.sonar_sub = rospy.Subscriber(
-                SONAR_TOPIC, OculusPing, self.callback, queue_size=10)
-        else:
-            self.sonar_sub = rospy.Subscriber(
-                SONAR_TOPIC_UNCOMPRESSED, OculusPingUncompressed, self.callback, queue_size=10)
+        self.sonar_sub = rospy.Subscriber(
+            SONAR_TOPIC, Image, self.callback, queue_size=10)
 
         #feature publish topic
         self.feature_pub = rospy.Publisher(
@@ -193,60 +191,55 @@ class FeatureExtraction(object):
         self.feature_pub.publish(feature_msg)
 
     #@add_lock
-    def callback(self, sonar_msg):
-        '''Feature extraction callback
-        sonar_msg: an OculusPing messsage, in polar coordinates
-        '''
+    def callback(self, sonar_msg:Image):
+        """The feature extraction callback. Get the raw sensor data and 
+        convert it to a planer point cloud.
 
-        if sonar_msg.ping_id % self.skip != 0:
+        Args:
+            sonar_msg (Image): the raw sonar image, here in simulation it is a ros Image. 
+        """
+
+        if self.img_id % self.skip != 0:
             self.feature_img = None
             # Don't extract features in every frame.
             # But we still need empty point cloud for synchronization in SLAM node.
             nan = np.array([[np.nan, np.nan]])
+            #print(nan)
+            #print(self.img_id)
             self.publish_features(sonar_msg, nan)
+            self.img_id = self.img_id + 1
             return
+        
+        self.img_id = self.img_id + 1
+        #get the raw image via cv bridge
+        img = 255. * np.array(self.BridgeInstance.imgmsg_to_cv2(sonar_msg)).astype(float)
+        img = np.array(img).astype(int)
 
-        #decode the compressed image
-        if self.compressed_images == True:
-            img = np.frombuffer(sonar_msg.ping.data,np.uint8)
-            img = np.array(cv2.imdecode(img,cv2.IMREAD_COLOR)).astype(np.uint8)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            
-        #the image is not compressed, just use the ros numpy package
-        else:
-            img = ros_numpy.image.image_to_numpy(sonar_msg.ping)
-
-        #generate a mesh grid mapping from polar to cartisian
-        self.generate_map_xy(sonar_msg)
-
-        # Detect targets and check against threshold using CFAR (in polar coordinates)
+        # Detect targets 
         peaks = self.detector.detect(img, self.alg)
+
+        #check against threshold
         peaks &= img > self.threshold
-
-        vis_img = cv2.remap(img, self.map_x, self.map_y, cv2.INTER_LINEAR)
-        vis_img = cv2.applyColorMap(vis_img, 2)
-        self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
-
-        #convert to cartisian
-        peaks = cv2.remap(peaks, self.map_x, self.map_y, cv2.INTER_LINEAR)        
         locs = np.c_[np.nonzero(peaks)]
 
-        #convert from image coords to meters
-        x = locs[:,1] - self.cols / 2.
-        x = (-1 * ((x / float(self.cols / 2.)) * (self.width / 2.))) #+ self.width
-        y = (-1*(locs[:,0] / float(self.rows)) * self.height) + self.height
-        points = np.column_stack((y,x))
+        #some trig for the image mapping
+        max_range = 30.
+        x_range = max_range * np.cos(np.radians(25.))
 
-        #filter the cloud using PCL
+        #convert to x/y coords
+        x = locs[:,1] - (1106 / 2.)
+        y = 600 - locs[:,0]
+        x = (x / 600.) * 30
+        y = (y / 600.) * 30
+        points = np.column_stack((y,-x))
+
+        #filter the cloud
         if len(points) and self.resolution > 0:
             points = pcl.downsample(points, self.resolution)
 
-        #remove some outliars
         if self.outlier_filter_min_points > 1 and len(points) > 0:
-            # points = pcl.density_filter(points, 5, self.min_density, 1000)
             points = pcl.remove_outlier(
                 points, self.outlier_filter_radius, self.outlier_filter_min_points
             )
 
-        #publish the feature message
         self.publish_features(sonar_msg, points)
