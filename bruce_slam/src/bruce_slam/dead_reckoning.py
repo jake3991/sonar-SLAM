@@ -251,6 +251,12 @@ class DeadReckoningNode(object):
 		self.tf.sendTransform(
 			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom"
 		)
+
+		# send a transform for the submapping system
+		self.tf.sendTransform(
+			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "dead_reckoning", "map"
+		)
+
 		if publish_traj:
 			traj = np.array([g2n(pose) for _, pose in self.keyframes])
 			traj_msg = ros_colorline_trajectory(traj)
