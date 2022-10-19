@@ -84,6 +84,9 @@ class SLAMNode(SLAM):
         self.pcm_queue_size = rospy.get_param(ns + "pcm_queue_size")
         self.min_pcm = rospy.get_param(ns + "min_pcm")
 
+        # are we doing 3D submapping
+        self.mapping_3d = rospy.get_param(ns + "mapping_3d")
+
         #mak delay between an incoming point cloud and dead reckoning
         self.feature_odom_sync_max_delay = 0.5
 
@@ -91,7 +94,8 @@ class SLAMNode(SLAM):
         self.feature_sub = Subscriber(SONAR_FEATURE_TOPIC, PointCloud2)
         self.odom_sub = Subscriber(LOCALIZATION_ODOM_TOPIC, Odometry)
         self.odom_sub_repub = rospy.Subscriber(LOCALIZATION_ODOM_TOPIC_II, Odometry, self.odom_callback)
-        self.sonar_fusion_sub = rospy.Subscriber("/SonarCloud", PointCloud2,self.sonar_fusion_callback)
+        if self.mapping_3d:
+            self.sonar_fusion_sub = rospy.Subscriber("/SonarCloud", PointCloud2,self.sonar_fusion_callback)
 
         #define the sync policy
         self.time_sync = ApproximateTimeSynchronizer(
@@ -187,7 +191,6 @@ class SLAMNode(SLAM):
             cloud_msg (PointCloud2): the point cloud from sonar fusion node
         """
 
-        print("got cloud")
         # check that we have init the keyframes
         # make sure that this cloud happened after or at the same time as the keyframe
         # we are about to log it to. 

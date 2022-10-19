@@ -40,6 +40,9 @@ nssm:
 pcm_queue_size: 5 # the sliding window size for PCM
 min_pcm: 2 # the min number of pairwise consistent loop closures
 
+# Are we doing 3D submapping?
+mapping_3d: True
+
 # TODO remove this param
 # Number of samples to compute the probability of
 # successful non-sequential scan matching p(z)
