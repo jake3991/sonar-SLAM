@@ -174,6 +174,7 @@ class SLAMNode(SLAM):
         if self.keyframes:
             time = odom_msg.header.stamp
             dr_pose3 = r2g(odom_msg.pose.pose)
+            dr_pose3 = dr_pose3.compose(gtsam.Pose3(gtsam.Pose2(1.15,0,0))) # transform from base_link to sonar_link
             frame = Keyframe(False, time, dr_pose3)
             dr_odom = self.current_keyframe.dr_pose.between(frame.dr_pose)
             pose = self.current_keyframe.pose.compose(dr_odom)
@@ -350,25 +351,17 @@ class SLAMNode(SLAM):
             pose_msg.header.frame_id = "map"
         else:
             pose_msg.header.frame_id = self.rov_id + "_map"
-        pose_msg.pose.pose = g2r(self.current_frame.pose3)
+
+        # apply the transform from sonar_link to base_link
+        current_pose = self.current_frame.pose3
+        current_pose = current_pose.compose(gtsam.Pose3(gtsam.Pose2(-1.15,0,0)))
+        pose_msg.pose.pose = g2r(current_pose)
 
         cov = 1e-4 * np.identity(6, np.float32)
         # FIXME Use cov in current_frame
         cov[np.ix_((0, 1, 5), (0, 1, 5))] = self.current_keyframe.transf_cov
         pose_msg.pose.covariance = cov.ravel().tolist()
         self.pose_pub.publish(pose_msg)
-
-        o2m = self.current_frame.pose3.compose(self.current_frame.dr_pose3.inverse())
-        o2m = g2r(o2m)
-        p = o2m.position
-        q = o2m.orientation
-        self.tf.sendTransform(
-            (p.x, p.y, p.z),
-            [q.x, q.y, q.z, q.w],
-            self.current_frame.time,
-            "odom",
-            "map",
-        )
 
         odom_msg = Odometry()
         odom_msg.header = pose_msg.header
@@ -379,6 +372,12 @@ class SLAMNode(SLAM):
             odom_msg.child_frame_id = self.rov_id + "_base_link"
         odom_msg.twist.twist = self.current_frame.twist
         self.odom_pub.publish(odom_msg)
+
+        p = odom_msg.pose.pose.position
+        q = odom_msg.pose.pose.orientation
+        self.tf.sendTransform(
+            (p.x, p.y, p.z), (q.x, q.y, q.z, q.w), odom_msg.header.stamp, odom_msg.child_frame_id, pose_msg.header.frame_id
+        )
 
     def publish_constraint(self)->None:
         """Publish constraints between poses in the factor graph,

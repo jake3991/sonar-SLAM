@@ -249,7 +249,7 @@ class DeadReckoningNode(object):
 		p = odom_msg.pose.pose.position
 		q = odom_msg.pose.pose.orientation
 		self.tf.sendTransform(
-			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom"
+			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link_dead_reckoning", "map"
 		)
 
 		# send a transform for the submapping system

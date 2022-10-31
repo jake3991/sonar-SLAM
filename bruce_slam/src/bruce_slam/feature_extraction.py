@@ -185,7 +185,7 @@ class FeatureExtraction(object):
         #give the feature message the same time stamp as the source sonar image
         #this is CRITICAL to good time sync downstream
         feature_msg.header.stamp = ping.header.stamp
-        feature_msg.header.frame_id = "base_link"
+        feature_msg.header.frame_id = "sonar_link"
 
         #publish the point cloud, to be used by SLAM
         self.feature_pub.publish(feature_msg)
