@@ -2,7 +2,7 @@
 import numpy as np
 import cv2
 import rospy
-from sensor_msgs.msg import PointCloud2, Image
+from sensor_msgs.msg import PointCloud2, Image, CompressedImage
 import cv_bridge
 import ros_numpy
 
@@ -117,7 +117,7 @@ class FeatureExtraction(object):
 
         #sonar subsciber
         self.sonar_sub = rospy.Subscriber(
-            SONAR_TOPIC, Image, self.callback, queue_size=10)
+            SONAR_TOPIC, CompressedImage, self.callback, queue_size=10)
 
         #feature publish topic
         self.feature_pub = rospy.Publisher(
@@ -210,10 +210,12 @@ class FeatureExtraction(object):
             self.img_id = self.img_id + 1
             return
         
+        # image id update for skip
         self.img_id = self.img_id + 1
-        #get the raw image via cv bridge
-        img = 255. * np.array(self.BridgeInstance.imgmsg_to_cv2(sonar_msg)).astype(float)
-        img = np.array(img).astype(int)
+
+        # decompress the image
+        np_arr = np.fromstring(sonar_msg.data, np.uint8)
+        img = cv2.imdecode(np_arr, 0)
 
         # Detect targets 
         peaks = self.detector.detect(img, self.alg)

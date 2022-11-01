@@ -10,7 +10,7 @@ Topics for the bruce_slam project
 IMU_TOPIC = "/rexrov/imu"
 DVL_TOPIC = "/rexrov/dvl_twist"
 DEPTH_TOPIC = "/rexrov/pressure"
-SONAR_TOPIC = "/rexrov/forward_sonar_horiz/raw_sonar"
+SONAR_TOPIC = "/rexrov/forward_sonar_horiz/raw_sonar_compressed"
 
 SLAM_NS = "/bruce/slam/"
 GYRO_INTEGRATION_TOPIC = SLAM_NS + "gyro_integrated"
