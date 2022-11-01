@@ -1,4 +1,5 @@
 # python imports
+from email.header import Header
 import threading
 import tf
 import rospy
@@ -16,6 +17,7 @@ from bruce_slam.utils.io import *
 from bruce_slam.utils.conversions import *
 from bruce_slam.utils.visualization import *
 from bruce_slam.slam import SLAM, Keyframe
+from bruce_msgs.msg import PoseHistory
 from bruce_slam import pcl
 
 # Argonaut imports
@@ -127,6 +129,10 @@ class SLAMNode(SLAM):
         #point cloud publisher topic
         self.submap_pub = rospy.Publisher(
                     "submaps", PointCloud2, queue_size=1, latch=True)
+
+        # pose history publisher
+        self.pose_history_pub = rospy.Publisher(
+                    "pose_history", PoseHistory, queue_size=1, latch=True)
 
         #tf broadcaster to show pose
         self.tf = tf.TransformBroadcaster()
@@ -419,6 +425,14 @@ class SLAMNode(SLAM):
 
         #get all the poses from each keyframe
         poses = np.array([g2n(kf.pose3) for kf in self.keyframes])
+
+        # publish the whole timehistory for the baysian mapping system
+        pose_history_msg = PoseHistory()
+        pose_history_msg.header = Header()
+        pose_history_msg.header.frame_id = ""
+        pose_history_msg.header.stamp = self.keyframes[-1].time
+        pose_history_msg.data = list(np.ravel(poses))
+        self.pose_history_pub.publish(pose_history_msg)
 
         #convert to a ros color line
         traj_msg = ros_colorline_trajectory(poses)

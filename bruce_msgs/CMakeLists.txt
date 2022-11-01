@@ -15,7 +15,7 @@ add_message_files(
    FILES
    ISAM2Update.msg
    #keyframe_image.msg
-   #posehistory.msg
+   PoseHistory.msg
 )
 
 add_service_files(
