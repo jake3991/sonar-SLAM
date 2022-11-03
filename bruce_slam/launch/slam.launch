@@ -58,5 +58,6 @@
     <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find bruce_slam)/rviz/video.rviz" />
     <node pkg="bruce_slam" name="horizontal_compressor" type="image_compressor.py" args="1" output="screen"/>
     <node pkg="bruce_slam" name="vertical_compressor" type="image_compressor.py" args="2" output="screen"/>
-
+    <include file="$(find stereo_sonar)/launch/stereoSonar.launch"/>
+    
 </launch>
