@@ -97,7 +97,7 @@ class SLAMNode(SLAM):
         self.odom_sub = Subscriber(LOCALIZATION_ODOM_TOPIC, Odometry)
         self.odom_sub_repub = rospy.Subscriber(LOCALIZATION_ODOM_TOPIC_II, Odometry, self.odom_callback)
         if self.mapping_3d:
-            self.sonar_fusion_sub = rospy.Subscriber("/SonarCloud", PointCloud2,self.sonar_fusion_callback)
+            self.sonar_fusion_sub = rospy.Subscriber("/SonarCloud", PointCloud2,self.sonar_fusion_callback,queue_size=1000)
 
         #define the sync policy
         self.time_sync = ApproximateTimeSynchronizer(
