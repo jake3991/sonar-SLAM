@@ -1,37 +1,40 @@
-#!/usr/bin/env python
-from typing import Tuple
+# python imports
+import cv2
+import time
 import rospy
-from std_msgs.msg import String
-from sensor_msgs.msg import Image, PointCloud2, PointField, CompressedImage
 import ros_numpy
-from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Cache
-from message_filters import Subscriber
 import cv_bridge
 import numpy as np
-import cv2
-from bruce_slam.utils.io import *
-from bruce_slam.CFAR import CFAR
-from bruce_slam import pcl
-from bruce_msgs.msg import PoseHistory
-from std_msgs.msg import Header
+import tensorflow as tf
+from typing import Tuple
+from tensorflow import keras
 from sklearn.cluster import DBSCAN
 from scipy.spatial.transform import Rotation
-import sensor_msgs.point_cloud2 as pc2
-from sensor_msgs.msg import Image
-from bruce_slam import pcl
-from tensorflow import keras
-import tensorflow as tf
-import time
 
+# ros imports
+from std_msgs.msg import Header
+from message_filters import Subscriber
+import sensor_msgs.point_cloud2 as pc2
+from message_filters import TimeSynchronizer, Cache
+from sensor_msgs.msg import Image, PointCloud2, PointField, CompressedImage
+
+# bruce imports
+from bruce_slam import pcl
+from bruce_slam.utils.io import *
+from bruce_slam.CFAR import CFAR
+from bruce_msgs.msg import PoseHistory
+
+# set tensorflow memeory growth, this prevents error on laptop GPU
 physical_devices = tf.config.list_physical_devices('GPU') 
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+# read in the segmentation model
 model = keras.models.load_model("/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/models/sim_model.h5")
 model.make_predict_function()
 
 class keyframe():
-    '''class to be used as a sub class for 3D mapping
-    '''
+    """class to be used as a sub class for 3D mapping
+    """
     def __init__(self, pose_, image_, fusedCloud_):
 
          self.pose = pose_
@@ -55,9 +58,16 @@ class keyframe():
          self.segcontainsPoints = False
          
 
-    def real2pix(self,points):
-        '''convert from meters to pixels
-        '''
+    def real2pix(self,points: np.array) -> np.array:
+        """convert from meters to pixels
+
+        Args:
+            points (np.array): input points
+
+        Returns:
+            np.array: points now in pixels
+        """
+
         x = ( - self.width / 2 * (points[:,2] / self.xRange)) + self.width/2
         y = self.height - (self.height * (points[:,0] / self.maxRange))
         
