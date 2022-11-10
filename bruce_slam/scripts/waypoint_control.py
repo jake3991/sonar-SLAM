@@ -11,7 +11,7 @@ class control():
     def __init__(self):
 
         #define the waypoints
-        self.waypoints = np.array([ [300, 0, -80],
+        '''self.waypoints = np.array([ [300, 0, -80],
                                     [300,-18,0],
                                     [250,-18,80],
                                     [50,-5,80],
@@ -19,6 +19,13 @@ class control():
                                     [-30,10,-80],
                                     [225,10,-80],
                                     [300,0,-80],
+                                    ])'''
+
+        self.waypoints = np.array([ [8, -12, 80],
+                                    [8, 15, -10],
+                                    [-10, 15, 100],
+                                    [-30, 10, 100],
+                                    [0, 11, -80],
                                     ])
 
         #class object counter for waypoints
