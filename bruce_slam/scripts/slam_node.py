@@ -3,6 +3,7 @@
 import rospy
 from bruce_slam.utils.io import *
 from bruce_slam.slam_ros import SLAMNode
+from bruce_slam.utils.topics import *
 
 def offline(args)->None:
     """run the SLAM system offline
@@ -15,9 +16,9 @@ def offline(args)->None:
     from rosgraph_msgs.msg import Clock
     from dead_reckoning_node import DeadReckoningNode
     from feature_extraction_node import FeatureExtraction
-    from gyro_node import GyroFilter
-    from mapping_node import MappingNode
     from bruce_slam.utils import io
+
+    from stereo_sonar.stereoSonarCartisian import stereoSonar
 
     # set some params
     io.offline = True
@@ -29,10 +30,9 @@ def offline(args)->None:
     dead_reckoning_node.init_node(SLAM_NS + "localization/")
     feature_extraction_node = FeatureExtraction()
     feature_extraction_node.init_node(SLAM_NS + "feature_extraction/")
-    gyro_node = GyroFilter()
-    gyro_node.init_node(SLAM_NS + "gyro/")
-    """mp_node = MappingNode()
-    mp_node.init_node(SLAM_NS + "mapping/")"""
+    stereo_sonar_node = stereoSonar("")
+
+
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
 
     # loop over the entire rosbag
@@ -44,7 +44,7 @@ def offline(args)->None:
         if rospy.is_shutdown():
             break
 
-        if topic == IMU_TOPIC or topic == IMU_TOPIC_MK_II:
+        if topic == IMU_TOPIC:
             dead_reckoning_node.imu_sub.callback(msg)
         elif topic == DVL_TOPIC:
             dead_reckoning_node.dvl_sub.callback(msg)
@@ -52,16 +52,20 @@ def offline(args)->None:
             dead_reckoning_node.depth_sub.callback(msg)
         elif topic == SONAR_TOPIC:
             feature_extraction_node.sonar_sub.callback(msg)
-        elif topic == GYRO_TOPIC:
-            gyro_node.gyro_sub.callback(msg)
+
+        if topic == SONAR_TOPIC:
+            stereo_sonar_node.horizontalSonarSub.callback(msg)
+        elif topic == VERTICAL_SONAR_TOPIC:
+            stereo_sonar_node.verticalSonarSub.callback(msg)            
 
         # use the IMU to drive the clock
-        if topic == IMU_TOPIC or topic == IMU_TOPIC_MK_II:
+        if topic == IMU_TOPIC:
 
             clock_pub.publish(Clock(msg.header.stamp))
 
             # Publish map to world so we can visualize all in a z-down frame in rviz.
             node.tf.sendTransform((0, 0, 0), [1, 0, 0, 0], msg.header.stamp, "map", "world")
+            node.tf.sendTransform((1.15, 0, 0), [1, 0, 0, 0], msg.header.stamp, "sonar_link", "base_link")
     
 
 if __name__ == "__main__":

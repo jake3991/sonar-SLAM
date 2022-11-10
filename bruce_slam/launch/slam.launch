@@ -15,7 +15,7 @@
         
             <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>
             <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" ns="feature_extraction"/>
-            <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml" ns="gyro"/>
+            <rosparam command="load" file="$(find stereo_sonar)/config/match.yaml" ns=""/>
             <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen"
                 args="--file $(arg file) --start=$(arg start) --duration=$(arg duration)" required="$(arg kill)">
                 <rosparam command="load" file="$(find bruce_slam)/config/slam.yaml" subst_value="true"/>
