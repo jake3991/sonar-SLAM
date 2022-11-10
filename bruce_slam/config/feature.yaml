@@ -8,11 +8,11 @@ CFAR:
 
 # point cloud filtering params
 filter:
-  threshold: 140 # the min CFAR response to be added to the point cloud
+  threshold: 145 # the min CFAR response to be added to the point cloud
   resolution: 0.5 # voxel downsampling res
   radius: 1.0 # outlier rejection radius
   min_points: 5 # outlier rejection min points
-  skip: 5 # how often to skip a point cloud, use 1
+  skip: 1 # how often to skip a point cloud, use 1
 
 # the vis params
 visualization:
