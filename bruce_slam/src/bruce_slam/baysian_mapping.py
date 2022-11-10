@@ -675,7 +675,7 @@ class BaysianMappingNode():
                             pred = np.argmax(avg)
 
                             # color the points
-                            if pred == 0:
+                            if pred == 0: # ROUND PILE
 
                                 # log colors for cloud
                                 segColors += list(100 * np.ones(len(pointsSubset)))
@@ -688,7 +688,7 @@ class BaysianMappingNode():
                                 pointsBoxes.append(pointsSubset)
                                 probs.append(0)
 
-                            elif pred == 1:
+                            elif pred == 1: # SQUARE PILE
 
                                 # log colors for cloud
                                 segColors += list(255 * np.ones(len(pointsSubset)))
@@ -701,15 +701,15 @@ class BaysianMappingNode():
                                 pointsBoxes.append(pointsSubset)
                                 probs.append(1)
 
-                            elif pred == 2:
+                            elif pred == 2: # WALL
 
                                 # log colors for cloud
-                                segColors += list(180 * np.ones(len(pointsSubset)))
+                                segColors += list(200 * np.ones(len(pointsSubset)))
                                 boundingBoxes.append(refPt)
                                 pointsBoxes.append(pointsSubset)
                                 probs.append(2)
 
-                            else:
+                            else: # BOAT
 
                                 # log colors for cloud
                                 segColors += list(200 * np.ones(len(pointsSubset)))
@@ -717,7 +717,7 @@ class BaysianMappingNode():
                                 pointsBoxes.append(pointsSubset)
                                 probs.append(3)
                             
-                    else:
+                    else: # CLASS IS UNKNOWN
 
                         # record the points
                         segPoints = np.row_stack((segPoints, pointsSubset))
@@ -968,8 +968,6 @@ class BaysianMappingNode():
         # record the keyframe
         self.keyframes.append(frame)
         self.numKeyframes += 1
-
-        print(len(self.keyframes),len(self.poses))
 
         # publish the new info
         self.publishUpdate()
