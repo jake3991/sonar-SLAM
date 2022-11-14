@@ -28,6 +28,9 @@
     <group ns="bruce" if="$(eval arg('file') == '')">
         <group ns="slam">
 
+            <!-- start stereo sonar-->
+            <include file="$(find stereo_sonar)/launch/stereoSonar.launch"/>
+
             <!-- start the dead reckoning node if we are not using the kalman filter -->
             <node if="$(eval kalman_dead_reckoning == false)"  pkg="bruce_slam" name="dead_reckoning" type="dead_reckoning_node.py" output="screen">
                 <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml"/>
@@ -58,6 +61,6 @@
     <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find bruce_slam)/rviz/video.rviz" />
     <node pkg="bruce_slam" name="horizontal_compressor" type="image_compressor.py" args="1" output="screen"/>
     <node pkg="bruce_slam" name="vertical_compressor" type="image_compressor.py" args="2" output="screen"/>
-    <include file="$(find stereo_sonar)/launch/stereoSonar.launch"/>
+    
     
 </launch>
