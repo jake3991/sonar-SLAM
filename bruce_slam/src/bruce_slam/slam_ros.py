@@ -1,9 +1,9 @@
 # python imports
-from email.header import Header
 import threading
 import tf
 import rospy
 import cv_bridge
+from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
 from message_filters import  Subscriber
 from sensor_msgs.msg import PointCloud2
@@ -298,6 +298,23 @@ class SLAMNode(SLAM):
             self.publish_all()
             
         self.lock.release()
+
+    def log(self) -> None:
+        """Log the relevant data from the mission
+        """
+
+        # poses
+        poses = []
+
+        # submaps
+        submaps = []
+
+        # pull the submap and pose
+        for index in range(len(self.keyframes)):
+            submaps.append(self.keyframes[index].submap_3D)
+            poses.append(pose223(self.keyframes[index].pose))
+
+        
 
     def publish_all(self)->None:
         """Publish to all ouput topics
