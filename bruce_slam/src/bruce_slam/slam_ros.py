@@ -2,6 +2,7 @@
 import threading
 import tf
 import rospy
+import pickle
 import cv_bridge
 from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
@@ -309,12 +310,18 @@ class SLAMNode(SLAM):
         # submaps
         submaps = []
 
+        path = "/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/"
+
         # pull the submap and pose
         for index in range(len(self.keyframes)):
             submaps.append(self.keyframes[index].submap_3D)
             poses.append(pose223(self.keyframes[index].pose))
 
-        
+        with open(path + 'poses.pickle', 'wb') as handle:
+            pickle.dump(poses, handle)
+
+        with open(path + 'submaps.pickle', 'wb') as handle:
+            pickle.dump(submaps, handle)
 
     def publish_all(self)->None:
         """Publish to all ouput topics
@@ -329,6 +336,7 @@ class SLAMNode(SLAM):
         self.publish_constraint()
         self.publish_point_cloud()
         self.publish_submaps()
+        self.log()
 
     def publish_submaps(self)->None:
         """Pull the submaps from each keyframe and publish them all as one pointcloud message.
@@ -348,6 +356,7 @@ class SLAMNode(SLAM):
 
                 # pull the keyframe pose, note this pose is only x,y,theta
                 pose = pose223(self.keyframes[index].pose)
+                #pose = self.keyframes[index].pose3
 
                 # register the submap in the global frame
                 H = pose.matrix().astype(np.float32)
