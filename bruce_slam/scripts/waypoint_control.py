@@ -10,26 +10,50 @@ class control():
     '''
     def __init__(self):
 
-        #define the waypoints
-        '''self.waypoints = np.array([ [300, 0, -80],
-                                    [300,-18,0],
-                                    [250,-18,80],
-                                    [50,-5,80],
-                                    [-30,-10,80],
-                                    [-30,10,-80],
-                                    [225,10,-80],
-                                    [300,0,-80],
-                                    ])'''
+        scene = "penns_landing"
 
-        self.waypoints = np.array([ [8, -12, 80],
-                                    [8, 15, -10],
-                                    [-10, 15, 100],
-                                    [-30, 10, 100],
-                                    [0, 11, -80],
-                                    ])
+        # penns landing
+        if scene == "penns_landing":
+            self.depth_set_point = -1
+            self.waypoints = np.array([ [300, 0, -75],
+                                        [300,-18,0],
+                                        [250,-18,80],
+                                        [50,-5,80],
+                                        [-30,-10,80],
+                                        [-30,10,-80],
+                                        [225,10,-80],
+                                        [300,0,-80],
+                                        ])
+
+        # RFAL land
+        elif scene == "RFAL_land":
+            self.depth_set_point = -1
+            self.waypoints = np.array([ [-20, 0, 80],
+                                        [12, 0, 80],
+                                        [12, 25, 0],
+                                        [0, 25, 80],
+                                        [-5, 22, 80],
+                                        [-30, 19, 80],
+                                        [0,19,-80]
+                                        ])
+        # plane
+        elif scene == "plane":
+            self.depth_set_point = -7
+            self.waypoints = np.array([ [-10, -5, -20],
+                                        [0, -20, -45],
+                                        [15, -20, -100],
+                                        [15, -9, -175],
+                                        [25, -20, -100],
+                                        [25, 20, -190],
+                                        [15, 9, 85],
+                                        [15, 20, -170],
+                                        [0, 20, 85],
+                                        [-10, 5, 20],
+                                        [-10, 0, 0]
+                                        ])
 
         #class object counter for waypoints
-        self.currentWaypoint = 0
+        self.currentWaypoint = 0        
 
         #joystick command publisher
         self.command = rospy.Publisher("rexrov/joy", Joy, queue_size = 100)
@@ -122,6 +146,17 @@ class control():
         xDiff = abs(pose_.position.x - setPoints[0])
         yDiff = abs(pose_.position.y - setPoints[1])
 
+        
+        zDiff = self.depth_set_point - pose_.position.z
+        if abs(zDiff) <= 0.05:
+            zDiff = 0.
+        elif zDiff > 0.1:
+            zDiff = 0.75
+        else:
+            zDiff = -0.75
+
+        print(pose_.position.z, zDiff)
+
         #if withen tolerance, make the error signal zero
         if xDiff < 0.5:
             xDiff = 0
@@ -160,7 +195,7 @@ class control():
         vec[vec < 0] = -1.0
 
         #compile the controller message
-        controlCmd = [rotationCmd, 0.0, 0.0, vec[0], vec[1], 0.0, 0.0, 0.0]
+        controlCmd = [rotationCmd, zDiff, 0.0, vec[0], vec[1], 0.0, 0.0, 0.0]
         
         #set up a new joy message
         joyMsg = Joy()
