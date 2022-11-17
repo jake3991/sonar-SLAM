@@ -2,6 +2,7 @@
 import cv2
 import time
 import rospy
+import pickle
 import ros_numpy
 import cv_bridge
 import numpy as np
@@ -144,6 +145,11 @@ class BaysianMappingNode():
         self.baysianBins = int((self.maxDepth - self.minDepth) / self.baysianRes)
         self.baysianX = np.linspace(self.minDepth, self.maxDepth, self.baysianBins)
         self.measSigma = .08
+
+        #ablation study params, for logging purposes only
+        self.scene = None
+        self.keyframe_translation = None
+        self.keyframe_rotation = None
 
         # ICP for object registration
         self.icp = pcl.ICP()
@@ -738,7 +744,7 @@ class BaysianMappingNode():
         """
 
         # start a cloud
-        cloud = np.array([0., 0., 0.])
+        cloud =  np.column_stack(([], [], []))
 
         # set rerun flag
         rerun = [True, True]
@@ -779,6 +785,10 @@ class BaysianMappingNode():
         #publish the map, seg and 3D
         self.publishMap()
 
+        #log the data
+        if self.scene is not None:
+            self.log()
+
         #publish the belif grids
         #self.publishGrids()
 
@@ -793,6 +803,27 @@ class BaysianMappingNode():
         if self.grids[1] != None:
             imgPub = np.array((self.grids[1][0] / np.max(self.grids[1][0])) * 255).astype(np.uint8)
             self.object_2.publish(self.CVbridge.cv2_to_imgmsg(imgPub, encoding="passthrough"))'''
+
+    def log(self) -> None:
+        """Save the point clouds using pickle
+        """
+
+        inference_clouds = []
+        fusion_clouds = []
+
+        for frame in self.keyframes:
+            inference_clouds.append(frame.constructedCloud)
+            fusion_clouds.append(frame.fusedCloud)
+
+        file_name = str(int(self.keyframe_translation)) + "_" + str(int(np.round(np.degrees(self.keyframe_rotation))))
+        path = "/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/" 
+        path += self.scene + "/"
+
+        with open(path + 'inference_clouds_'+file_name+'.pickle', 'wb') as handle:
+            pickle.dump(inference_clouds, handle)
+
+        with open(path + 'fusion_clouds_'+file_name+'.pickle', 'wb') as handle:
+            pickle.dump(fusion_clouds, handle)
 
     def publishMap(self) -> None:
         """Publish the maps
