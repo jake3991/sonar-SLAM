@@ -10,7 +10,7 @@ class control():
     '''
     def __init__(self):
 
-        scene = "penns_landing"
+        scene = "RFAL_land"
 
         # penns landing
         if scene == "penns_landing":
@@ -33,8 +33,8 @@ class control():
                                         [12, 25, 0],
                                         [0, 25, 80],
                                         [-5, 22, 80],
-                                        [-30, 19, 80],
-                                        [0,19,-80]
+                                        [-30, 22.5, 80],
+                                        [0,22.5,-80]
                                         ])
         # plane
         elif scene == "plane":
