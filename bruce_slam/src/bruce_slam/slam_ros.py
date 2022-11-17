@@ -313,11 +313,10 @@ class SLAMNode(SLAM):
         # submaps
         submaps = []
 
-        file_name = str(self.keyframe_translation) + "_" + str(np.round(np.degrees(self.keyframe_rotation)))
+        file_name = str(int(self.keyframe_translation)) + "_" + str(int(np.round(np.degrees(self.keyframe_rotation))))
 
         path = "/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/" 
         path += self.scene + "/"
-        print(path)
 
         # pull the submap and pose
         for index in range(len(self.keyframes)):
