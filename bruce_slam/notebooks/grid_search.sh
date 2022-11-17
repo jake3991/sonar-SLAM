@@ -5,7 +5,7 @@ do
     for kf_rotation in 30 60 90
     do 
         echo $kf_translation" "$kf_rotation
-        roslaunch bruce_slam slam.launch file:="/home/jake/Desktop/sim_bags/"$sim_scene".bag" translation:=$kf_rotation translation:=$kf_translation scene:=$sim_scene &
+        roslaunch bruce_slam slam.launch file:="/home/jake/Desktop/sim_bags/"$sim_scene".bag" rotation:=$kf_rotation translation:=$kf_translation scene:=$sim_scene &
 
         if [ "$sim_scene" == "plane" ]
         then
