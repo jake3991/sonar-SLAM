@@ -51,6 +51,53 @@ def load_penns_landing_scene() -> o3d.geometry.TriangleMesh:
 
     return mesh
 
+def load_rfal_land_scene() -> o3d.geometry.TriangleMesh:
+    """Get the penns landing scene as an open3d triangle mesh
+
+    Returns:
+        o3d.geometry.TriangleMesh: return the gazebo scene in python
+    """
+
+    mesh = o3d.io.read_triangle_mesh("/home/jake/Desktop/uuv_sim_docker/uuv_simulator/uuv_gazebo_worlds/" +
+                                       "models/RFAL_land/meshes/training_world_set_origin.stl" )
+
+
+    # boat 1
+    mesh_2 = o3d.io.read_triangle_mesh("/home/jake/Desktop/uuv_sim_docker/uuv_simulator/uuv_gazebo_worlds/" +
+                                       "models/RFAL_land/meshes/boat.stl" )
+    mesh_2 = mesh_2.translate((-12.5,-9,5))
+    mesh += mesh_2
+
+    # boat 2
+    mesh_2 = o3d.io.read_triangle_mesh("/home/jake/Desktop/uuv_sim_docker/uuv_simulator/uuv_gazebo_worlds/" +
+                                       "models/RFAL_land/meshes/boat.stl" )
+    R = mesh_2.get_rotation_matrix_from_xyz((0,0,np.radians(90)))
+    mesh_2 = mesh_2.rotate(R, center=(0, 0, 0))
+    mesh_2 = mesh_2.translate((16,5,5))
+    mesh += mesh_2 
+
+    # boat 3
+    mesh_2 = o3d.io.read_triangle_mesh("/home/jake/Desktop/uuv_sim_docker/uuv_simulator/uuv_gazebo_worlds/" +
+                                       "models/RFAL_land/meshes/boat.stl" )
+    R = mesh_2.get_rotation_matrix_from_xyz((0,0,-1.13))
+    mesh_2 = mesh_2.rotate(R, center=(0, 0, 0))
+    mesh_2 = mesh_2.translate((-15,15,5)) 
+    mesh += mesh_2 
+
+    # boat 4
+    mesh_2 = o3d.io.read_triangle_mesh("/home/jake/Desktop/uuv_sim_docker/uuv_simulator/uuv_gazebo_worlds/" +
+                                       "models/RFAL_land/meshes/boat.stl" )
+    R = mesh_2.get_rotation_matrix_from_xyz((0,0,-1.13))
+    mesh_2 = mesh_2.rotate(R, center=(0, 0, 0))
+    mesh_2 = mesh_2.translate((-28,10,5)) 
+    mesh += mesh_2 
+    
+    R = mesh.get_rotation_matrix_from_xyz((np.radians(180),0,0))
+    mesh = mesh.rotate(R, center=(0, 0, 0))
+    mesh = mesh.translate((0,0,5))
+
+    return mesh
+
 def load_scene(scene: str) -> o3d.geometry.TriangleMesh:
     """Load the required scene by reading the STL files and 
     handling them as open3d triangle mesh objects
@@ -66,6 +113,10 @@ def load_scene(scene: str) -> o3d.geometry.TriangleMesh:
         return load_plane_scene()
     elif scene == "penns_landing":
         return load_penns_landing_scene()
+    elif scene == "rfal_land":
+        return load_rfal_land_scene()
+    else:
+        raise NotImplementedError
 
 def load_origin(scene: str) -> gtsam.Pose3:
     """Get the starting location of the robot based on the gazebo scene
@@ -81,6 +132,10 @@ def load_origin(scene: str) -> gtsam.Pose3:
         return gtsam.Pose3(gtsam.Rot3(),[-10, 0, -7])
     elif scene == "penns_landing":
         return gtsam.Pose3(gtsam.Rot3(),[250, 0, 0])
+    elif scene == "rfal_land":
+        return gtsam.Pose3(gtsam.Pose2(-20,15,1.5708))
+    else:
+        raise NotImplementedError
 
 def aggragate_points(clouds:list, poses: list, frame: gtsam.Pose3, coverage_rate: bool) -> list:
     """Turn a list of point clouds and poses into a combined

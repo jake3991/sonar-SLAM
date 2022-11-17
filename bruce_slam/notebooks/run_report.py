@@ -26,15 +26,13 @@ file.close()
 origin = load_origin(scene)
 
 # build the submaps into one big point cloud
-combined_map, coverage_per_step, step = aggragate_points(submaps,poses,origin,coverage_rate=False)
+combined_map, coverage_per_step, step = aggragate_points(submaps,poses,origin,coverage_rate=True)
 
 # build some open3d vis objects
 point_cloud = o3d.geometry.PointCloud()
 point_cloud.points = o3d.utility.Vector3dVector(combined_map)
 coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame()
 coord_frame = coord_frame.scale(5, center=coord_frame.get_center())
-
-#@point_cloud = mesh.sample_points_uniformly(100000000)
 
 if vis == 1:
     mesh.compute_vertex_normals()
