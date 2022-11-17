@@ -19,6 +19,7 @@ def offline(args)->None:
     from bruce_slam.utils import io
 
     from stereo_sonar.stereoSonarCartisian import stereoSonar
+    from baysian_mapping_node import BaysianMappingNode
 
     # set some params
     io.offline = True
@@ -31,6 +32,7 @@ def offline(args)->None:
     feature_extraction_node = FeatureExtraction()
     feature_extraction_node.init_node(SLAM_NS + "feature_extraction/")
     stereo_sonar_node = stereoSonar("")
+    bayes_mapping_node = BaysianMappingNode()
 
 
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
@@ -55,6 +57,7 @@ def offline(args)->None:
 
         if topic == SONAR_TOPIC:
             stereo_sonar_node.horizontalSonarSub.callback(msg)
+            bayes_mapping_node.image_sub.callback(msg)
         elif topic == VERTICAL_SONAR_TOPIC:
             stereo_sonar_node.verticalSonarSub.callback(msg)            
 

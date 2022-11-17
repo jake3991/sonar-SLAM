@@ -85,7 +85,7 @@ class BaysianMappingNode():
 
         # subscibers
         self.image_sub = Subscriber("/rexrov/forward_sonar_horiz/raw_sonar_compressed", CompressedImage, queue_size = 1000)
-        self.cloud_sub = Subscriber("/SonarCloud", PointCloud2, queue_size = 1000)
+        self.cloud_sub = Subscriber("/bruce/slam/SonarCloud", PointCloud2, queue_size = 1000)
         self.pose_history_sub = Subscriber("/bruce/slam/pose_history", PoseHistory, queue_size = 1000)
         self.cache = Cache(self.cloud_sub, 2000)
 
