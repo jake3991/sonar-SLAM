@@ -14,12 +14,12 @@ do
 
         if [ "$sim_scene" == "rfal_land" ]
         then
-            sleep 10
+            sleep 320
         fi
 
         if [ "$sim_scene" == "penns_landing" ]
         then
-            sleep 10
+            sleep 1140
         fi
         
         rosnode kill -a
