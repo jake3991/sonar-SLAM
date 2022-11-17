@@ -151,6 +151,9 @@ class SLAMNode(SLAM):
         # define the robot ID this is not used here, extended in multi-robot SLAM
         self.rov_id = ""
 
+        # placeholder for logging
+        self.scene = ""
+
         #call the configure function
         self.configure()
         loginfo("SLAM node is initialized")
@@ -310,17 +313,21 @@ class SLAMNode(SLAM):
         # submaps
         submaps = []
 
-        path = "/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/"
+        file_name = str(self.keyframe_translation) + "_" + str(np.round(np.degrees(self.keyframe_rotation)))
+
+        path = "/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/" 
+        path += self.scene + "/"
+        print(path)
 
         # pull the submap and pose
         for index in range(len(self.keyframes)):
             submaps.append(self.keyframes[index].submap_3D)
             poses.append(pose223(self.keyframes[index].pose))
 
-        with open(path + 'poses.pickle', 'wb') as handle:
+        with open(path + 'poses_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(poses, handle)
 
-        with open(path + 'submaps.pickle', 'wb') as handle:
+        with open(path + 'submaps_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(submaps, handle)
 
     def publish_all(self)->None:

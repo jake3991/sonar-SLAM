@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-
 import rospy
+import numpy as np
 from bruce_slam.utils.io import *
 from bruce_slam.slam_ros import SLAMNode
 from bruce_slam.utils.topics import *
@@ -79,6 +79,14 @@ if __name__ == "__main__":
 
     #parse and start
     args, _ = common_parser().parse_known_args()
+
+    # push through any changes in the keyframe density from command line
+    if args.translation is not None and args.translation != -1:
+        node.keyframe_translation = args.translation
+    if args.rotation is not None and args.rotation != -1:
+        node.keyframe_rotation = np.radians(args.rotation)
+    if args.scene is not None:
+        node.scene = args.scene 
 
     if not args.file:
         loginfo("Start online slam...")

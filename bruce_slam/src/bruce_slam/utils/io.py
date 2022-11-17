@@ -124,6 +124,24 @@ def common_parser(description="node"):
         help="duration of the video from START (default: -1)",
     )
 
+    parser.add_argument(
+        "--translation",
+        type=float,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--rotation",
+        type=float,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default=None,
+    )
+
     return parser
 
 
