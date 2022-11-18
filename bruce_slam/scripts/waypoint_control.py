@@ -10,7 +10,7 @@ class control():
     '''
     def __init__(self):
 
-        scene = "RFAL_land"
+        scene = "suny"
 
         # penns landing
         if scene == "penns_landing":
@@ -51,6 +51,17 @@ class control():
                                         [-10, 5, 20],
                                         [-10, 0, 0]
                                         ])
+
+        elif scene == "suny":
+            self.depth_set_point = -1
+            self.waypoints = np.array([ [0, 10, 0],
+                                        [-25, 10, -90],
+                                        [-25, 25, -170],
+                                        [-25, 5, -225],
+                                        [-20, -20, -225],
+                                        
+                                        ])
+
 
         #class object counter for waypoints
         self.currentWaypoint = 0        
