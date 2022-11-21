@@ -154,6 +154,9 @@ class SLAMNode(SLAM):
         # placeholder for logging
         self.scene = ""
 
+        # place holder for logging
+        self.submap_build_time = []
+
         #call the configure function
         self.configure()
         loginfo("SLAM node is initialized")
@@ -246,14 +249,14 @@ class SLAMNode(SLAM):
         self.lock.acquire()
 
         #get rostime from the point cloud
-        time = feature_msg.header.stamp
+        time_frame = feature_msg.header.stamp
 
         #get the dead reckoning pose from the odom msg, GTSAM pose object
         dr_pose3 = r2g(odom_msg.pose.pose)
         dr_pose3 = dr_pose3.compose(gtsam.Pose3(gtsam.Pose2(1.15,0,0))) # transform from base_link to sonar_link
 
         #init a new key frame
-        frame = Keyframe(False, time, dr_pose3)
+        frame = Keyframe(False, time_frame, dr_pose3)
 
         #convert the point cloud message to a numpy array of 2D
         points = ros_numpy.point_cloud2.pointcloud2_to_xyz_array(feature_msg)
@@ -329,6 +332,9 @@ class SLAMNode(SLAM):
         with open(path + 'submaps_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(submaps, handle)
 
+        with open(path + 'submap_times'+file_name+'.pickle', 'wb') as handle:
+            pickle.dump(self.submap_build_time, handle)
+
     def publish_all(self)->None:
         """Publish to all ouput topics
             trajectory, contraints, point cloud and the full GTSAM instance
@@ -342,7 +348,8 @@ class SLAMNode(SLAM):
         self.publish_constraint()
         self.publish_point_cloud()
         self.publish_submaps()
-        self.log()
+        if self.scene != "":
+            self.log()
 
     def publish_submaps(self)->None:
         """Pull the submaps from each keyframe and publish them all as one pointcloud message.

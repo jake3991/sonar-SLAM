@@ -235,6 +235,7 @@ class SLAM(object):
         saving tool.
         """
 
+        start_time = time.time()
         index = len(self.keyframes) - 2
         if index < 0:
             return
@@ -298,6 +299,9 @@ class SLAM(object):
                 self.keyframes[index].sonar_fusion_clouds,
                 self.keyframes[index].odom_tranforms,
             ) = ([], [])
+
+        if self.scene != "":
+            self.submap_build_time.append(time.time() - start_time)
 
     def get_points(
         self, frames: list = None, ref_frame: Any = None, return_keys: bool = False

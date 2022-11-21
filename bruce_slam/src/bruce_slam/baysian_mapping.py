@@ -150,6 +150,7 @@ class BaysianMappingNode():
         self.scene = None
         self.keyframe_translation = None
         self.keyframe_rotation = None
+        self.time_log = []
 
         # ICP for object registration
         self.icp = pcl.ICP()
@@ -825,6 +826,9 @@ class BaysianMappingNode():
         with open(path + 'fusion_clouds_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(fusion_clouds, handle)
 
+        with open(path + 'bayes_map_time'+file_name+'.pickle', 'wb') as handle:
+            pickle.dump(self.time_log, handle)
+
     def publishMap(self) -> None:
         """Publish the maps
         """
@@ -987,7 +991,9 @@ class BaysianMappingNode():
             frame.segcontainsPoints = True
         
         # build the cloud for this frame
+        start_time = time.time()
         constructedCloud, frame.rerun, frame.containsPoints = self.buildCloud(frame.segInfo[2], frame.segInfo[3], frame.segInfo[4])
+        self.time_log.append(time.time() - start_time)
 
         # check if the constructed cloud has anything in it, if so combine the clouds
         if frame.containsPoints == True:
