@@ -88,7 +88,7 @@ class BaysianMappingNode():
         self.image_sub = Subscriber("/rexrov/forward_sonar_horiz/raw_sonar_compressed", CompressedImage, queue_size = 1000)
         self.cloud_sub = Subscriber("/bruce/slam/SonarCloud", PointCloud2, queue_size = 1000)
         self.pose_history_sub = Subscriber("/bruce/slam/pose_history", PoseHistory, queue_size = 1000)
-        self.cache = Cache(self.cloud_sub, 2000)
+        #self.cache = Cache(self.cloud_sub, 2000)
 
         # publishers
         self.mapPublisher = rospy.Publisher("sonarMap",PointCloud2,queue_size = 5)
@@ -99,7 +99,7 @@ class BaysianMappingNode():
 
         # define time sync object
         self.timeSync = TimeSynchronizer(
-            [self.image_sub,self.pose_history_sub],queue_size=10000)
+            [self.image_sub,self.cloud_sub,self.pose_history_sub],queue_size=10000)
 
         # register callback
         self.timeSync.registerCallback(self.mappingCallback)
@@ -348,8 +348,9 @@ class BaysianMappingNode():
                         # log the values
                         for i in range(len(meas)):
                             z = meas[i]
-                            y_ = np.sqrt((r_[k]**2 - z**2) / (np.tan(np.radians(b_[k]))**2 + 1))
-                            x_ = np.sign(b_[k]) * np.sqrt((r_[k]**2 - z**2) / ((1 / np.tan(np.radians(b_[k]))**2 + 1)))
+                            elevationAngle = np.arccos(z / r_[k])
+                            y_ = r_[k] * np.cos(np.radians(b_[k])) * np.sin(elevationAngle)
+                            x_ = r_[k] * np.sin(np.radians(b_[k])) * np.sin(elevationAngle)
 
                             arr = np.array([y_, z, x_])
                             outputPoints = np.row_stack((outputPoints, arr))
@@ -748,7 +749,7 @@ class BaysianMappingNode():
         cloud =  np.column_stack(([], [], []))
 
         # set rerun flag
-        rerun = [True, True]
+        rerun = [False, False]
         status = False
 
         # for each detected object
@@ -834,10 +835,13 @@ class BaysianMappingNode():
         """
 
         # create a blank cloud
-        cloudOut = np.array([0., 0., 0.])
-        segCloudOut = np.array([0., 0., 0.])
-        simpleCloudOut = np.array([0., 0., 0.])
+        cloudOut = np.column_stack(([], [], []))
+        segCloudOut = np.column_stack(([], [], []))
+        simpleCloudOut = np.column_stack(([], [], []))
         segColors = []
+
+        if self.poses is None:
+            return
 
         # update all the old keyframes based on the new poses
         for i in range(len(self.keyframes)):
@@ -849,29 +853,6 @@ class BaysianMappingNode():
             self.keyframes[i].rot = Rotation.from_euler('xyz', 
                     np.degrees([self.keyframes[i].pose[3], self.keyframes[i].pose[4], self.keyframes[i].pose[5]]), degrees = True).as_matrix()
 
-            xform = np.column_stack((self.keyframes[i].rot.T, np.array([self.keyframes[i].pose[0],
-                                                     self.keyframes[i].pose[1], self.keyframes[i].pose[2]])))
-
-            # check if point cloud rework is needed, exclude the most recent keyframe
-            for j in range(len(self.keyframes[i].rerun)):
-
-                # protect for empty grid
-                if self.guassianGrids[j] != None:
-
-                    # if there are unrendered objects and we now have the required info, rebuild the point cloud
-                    if self.keyframes[i].rerun[j] == True:
-
-                        # build the cloud for this frame
-                        constructedCloud, self.keyframes[i].rerun, self.keyframes[i].containsPoints = self.buildCloud(self.keyframes[i].segInfo[2], 
-                                                                                                self.keyframes[i].segInfo[3], self.keyframes[i].segInfo[4])
-
-                        # check if the constructed cloud has anything in it, if so combine the clouds
-                        if self.keyframes[i].containsPoints == True:
-                            self.keyframes[i].constructedCloud = np.row_stack((constructedCloud,self.keyframes[i].fusedCloud))
-                        elif self.keyframes[i].fusedCloud.shape[0] != 0:
-                            self.keyframes[i].constructedCloud = self.keyframes[i].fusedCloud
-                            self.keyframes[i].containsPoints = True
-
             # register the point cloud to the global frame
             cloud = self.keyframes[i].fusedCloud.dot(self.keyframes[i].rot.T)
             cloud += np.array([self.keyframes[i].pose[0], self.keyframes[i].pose[1], self.keyframes[i].pose[2]])
@@ -879,9 +860,6 @@ class BaysianMappingNode():
 
             # if the cloud has any contents
             if self.keyframes[i].containsPoints == True:
-
-                xform = np.column_stack((self.keyframes[i].rot.T, np.array([self.keyframes[i].pose[0],
-                                                     self.keyframes[i].pose[1], self.keyframes[i].pose[2]])))
 
                 # register the point cloud to the global frame
                 cloud = self.keyframes[i].constructedCloud
@@ -902,53 +880,38 @@ class BaysianMappingNode():
                 segCloudOut = np.row_stack((segCloudOut, cloud))
                 segColors += self.keyframes[i].segInfo[1]
 
-        # Clear the first row of zeros
-        cloudOut = np.delete(cloudOut, 0, 0)
-        segCloudOut = np.delete(segCloudOut, 0, 0)
+        # remove points above the surface
+        cloudOut = cloudOut[cloudOut[:,2] >= 0]
+        simpleCloudOut = simpleCloudOut[simpleCloudOut[:,2] >= 0]
 
-        # get a time stamp
+        # get a time stamp, common stamp for all three clouds
         time = rospy.get_rostime() 
 
-        # protect from an empty cloud
-        if cloudOut.shape != (2,):
-
-            # cloud header
+        # protect from an empty cloud and publish the bayesian mapping cloud
+        if cloudOut.shape != (0, 3):
             header = Header()
             header.frame_id = 'map'
             header.stamp = time
-
-            # package numpy array as point cloud 
             laserCloudOut = pc2.create_cloud(header, self.laserFields, cloudOut)
-
-            # publish the cloud
             self.mapPublisher.publish(laserCloudOut)
 
-        # protect from an empty cloud
-        if segCloudOut.shape != (2,):
-
-            # cloud header
+        # protect from an empty cloud and publish the segmentation cloud
+        if segCloudOut.shape != (0, 3):
             header = Header()
             header.frame_id = 'map'
             header.stamp = time
-
-            # package numpy array as point cloud 
             segCloudOut = pc2.create_cloud(header, self.segFields, np.column_stack((segCloudOut,np.array(segColors))))
-
-            # publish the cloud
             self.segPublisher.publish(segCloudOut)
 
-        # cloud header
-        header = Header()
-        header.frame_id = 'map'
-        header.stamp = time
+        # protect from an empty cloud and publish the sonar fusion cloud
+        if simpleCloudOut.shape != (0, 3):
+            header = Header()
+            header.frame_id = 'map'
+            header.stamp = time
+            laserCloudOut = pc2.create_cloud(header, self.laserFields, simpleCloudOut)
+            self.mapSimplePublisher.publish(laserCloudOut)
 
-        # package numpy array as point cloud 
-        laserCloudOut = pc2.create_cloud(header, self.laserFields, simpleCloudOut)
-
-        # publish the cloud
-        self.mapSimplePublisher.publish(laserCloudOut)
-
-    def mappingCallback(self, img_msg: CompressedImage, pose_msg: PoseHistory) -> None:
+    def mappingCallback(self, img_msg: CompressedImage, cloud_msg: PointCloud2, pose_msg: PoseHistory) -> None:
         """Handle incoming messages to perform 3D mapping with inference
 
         Args:
@@ -957,27 +920,19 @@ class BaysianMappingNode():
             pose_msg (PoseHistory): the history of SLAM poses
         """ 
 
-        # decode the image
+        start_time = time.time()
+
+        # decode the image and point cloud
         image = np.fromstring(img_msg.data, np.uint8)
         image = cv2.imdecode(image, 0)
-
-        # block until we find the fusion message or it has been 3 seconds
-        cloud_msg = None
-        start_time = time.time()
-        while cloud_msg is None:
-            search = self.cache.getInterval(img_msg.header.stamp,img_msg.header.stamp)
-            if len(search) > 0:
-                cloud_msg = search[0]
-                cloud = ros_numpy.point_cloud2.pointcloud2_to_xyz_array(cloud_msg)
-            if time.time() - start_time > 3.0:
-                cloud = np.column_stack(([], [], []))
+        cloud = ros_numpy.point_cloud2.pointcloud2_to_xyz_array(cloud_msg)
 
         # record the poses
         pose_msg_data = list(pose_msg.data)
         self.poses = np.array(pose_msg_data).reshape(len(pose_msg_data) // 6 , 6)
 
         # create a new keyframe
-        frame = keyframe(self.poses[-1], image, cloud)
+        frame = keyframe(None, image, cloud)
         
         # segment the sonar image and push to the keyframe
         frame.segInfo = self.segmentImage(frame)
@@ -991,9 +946,7 @@ class BaysianMappingNode():
             frame.segcontainsPoints = True
         
         # build the cloud for this frame
-        start_time = time.time()
         constructedCloud, frame.rerun, frame.containsPoints = self.buildCloud(frame.segInfo[2], frame.segInfo[3], frame.segInfo[4])
-        self.time_log.append(time.time() - start_time)
 
         # check if the constructed cloud has anything in it, if so combine the clouds
         if frame.containsPoints == True:
@@ -1008,5 +961,8 @@ class BaysianMappingNode():
 
         # publish the new info
         self.publishUpdate()
+
+        # log the time it took to run this callback
+        self.time_log.append(time.time() - start_time)
 
 
