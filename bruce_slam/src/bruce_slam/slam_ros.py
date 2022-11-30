@@ -332,7 +332,7 @@ class SLAMNode(SLAM):
         with open(path + 'submaps_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(submaps, handle)
 
-        with open(path + 'submap_times'+file_name+'.pickle', 'wb') as handle:
+        with open(path + 'submaptimes_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(self.submap_build_time, handle)
 
     def publish_all(self)->None:

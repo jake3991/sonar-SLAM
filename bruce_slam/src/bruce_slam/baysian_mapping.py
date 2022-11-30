@@ -1,6 +1,7 @@
 # python imports
 import cv2
 import time
+import gtsam
 import rospy
 import pickle
 import ros_numpy
@@ -812,22 +813,27 @@ class BaysianMappingNode():
 
         inference_clouds = []
         fusion_clouds = []
+        transforms = []
 
         for frame in self.keyframes:
             inference_clouds.append(frame.constructedCloud)
             fusion_clouds.append(frame.fusedCloud)
+            transforms.append(gtsam.Pose3(gtsam.Rot3(frame.rot),gtsam.Point3(frame.pose[0], frame.pose[1], frame.pose[2])))
 
         file_name = str(int(self.keyframe_translation)) + "_" + str(int(np.round(np.degrees(self.keyframe_rotation))))
         path = "/home/jake/Desktop/open_source/src/sonar-SLAM/bruce_slam/notebooks/data_logs/" 
         path += self.scene + "/"
 
-        with open(path + 'inference_clouds_'+file_name+'.pickle', 'wb') as handle:
+        with open(path + 'poses3D_'+file_name+'.pickle', 'wb') as handle:
+            pickle.dump(transforms, handle)
+
+        with open(path + 'inferenceclouds_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(inference_clouds, handle)
 
-        with open(path + 'fusion_clouds_'+file_name+'.pickle', 'wb') as handle:
+        with open(path + 'fusionclouds_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(fusion_clouds, handle)
 
-        with open(path + 'bayes_map_time'+file_name+'.pickle', 'wb') as handle:
+        with open(path + 'bayesmaptime_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(self.time_log, handle)
 
     def publishMap(self) -> None:
