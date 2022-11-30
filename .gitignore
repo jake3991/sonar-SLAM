@@ -4,3 +4,5 @@ bruce_slam/src/bruce_slam/__pycache__/
 bruce_slam/utils/__pycache__/
 *pickle
 bruce_slam/notebooks/.ipynb_checkpoints/*.ipynb
+bruce_slam/notebooks/csv/*
+
