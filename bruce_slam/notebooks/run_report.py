@@ -5,8 +5,9 @@ import trimesh
 import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
+from bruce_slam import pcl
 
-from utils import load_scene, aggragate_points, load_origin
+from utils import load_scene, aggragate_points, load_origin, get_ground_truth_map, run_numbers
 
 # parse the arguments, do we want to visulize and do we want to run a quant study
 scene, vis, quant = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
@@ -15,10 +16,10 @@ scene, vis, quant = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 mesh = load_scene(scene)
 
 # open the SLAM data
-file = open("data_logs/poses.pickle",'rb')
+file = open("data_logs/"+scene+"/poses_5_60.pickle",'rb')
 poses = pickle.load(file)
 file.close()
-file = open("data_logs/submaps.pickle",'rb')
+file = open("data_logs/"+scene+"/submaps_5_60.pickle",'rb')
 submaps = pickle.load(file)
 file.close()
 
@@ -26,7 +27,7 @@ file.close()
 origin = load_origin(scene)
 
 # build the submaps into one big point cloud
-combined_map, coverage_per_step, step = aggragate_points(submaps,poses,origin,coverage_rate=True)
+combined_map, coverage_per_step, step = aggragate_points(submaps,poses,origin,coverage_rate=False,filter_surface=True)
 
 # build some open3d vis objects
 point_cloud = o3d.geometry.PointCloud()
@@ -39,21 +40,7 @@ if vis == 1:
     o3d.visualization.draw_geometries([coord_frame,mesh,point_cloud])
 
 if quant == 1:
-    tri_mesh = trimesh.Trimesh(vertices=np.asarray(mesh.vertices), faces=np.asarray(mesh.triangles))
-    _, distance, _ = trimesh.proximity.closest_point(tri_mesh,combined_map)
-
-    # voxelize the point cloud to grade coverage
-    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(point_cloud,voxel_size=0.1)
-
-    # generate distance metrics
-    print("mean absolute error: ", np.mean(abs(distance)))
-    print("root mean square error : ", np.sqrt(np.mean(distance**2)))
-
-    # generate coverage metrics
-    print("voxel count: ", len(voxel_grid.get_voxels()))
-
-    # generate coverage rate plot
-    plt.figure(figsize=(20,10))
-    plt.plot(step,coverage_per_step)
-    plt.title(scene,fontsize=20)
-    plt.show()
+    world = get_ground_truth_map(mesh, 10000000)
+    mae, rmse, coverage_rate = run_numbers(poses,submaps,origin,world,True,False)
+    print("MAE: ", mae)
+    print("RMSE: ", rmse)
