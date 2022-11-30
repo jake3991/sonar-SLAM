@@ -282,12 +282,12 @@ class SLAM(object):
 
         # perform some voxel downsampling
         if self.keyframes[index].submap_3D is not None:
-            self.keyframes[index].submap_3D = pcl.downsample(
+            '''self.keyframes[index].submap_3D = pcl.downsample(
                 self.keyframes[index].submap_3D, self.point_resolution
             )
             self.keyframes[index].submap_3D = pcl.remove_outlier(
                 self.keyframes[index].submap_3D, 1, 5
-            )
+            )'''
 
             # remove any points above the surface
             self.keyframes[index].submap_3D = self.keyframes[index].submap_3D[
