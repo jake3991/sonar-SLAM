@@ -1,11 +1,8 @@
 import sys
 import pickle
-import gtsam
 import glob
-import trimesh
 import numpy as np
 import pandas as pd
-import open3d as o3d
 import matplotlib.pyplot as plt
 
 from utils import load_scene, load_origin, load_data_into_dict, run_numbers, get_ground_truth_map
@@ -74,10 +71,13 @@ for cloud_type in ["fusion","infer","submap"]:
                 else:
                     raise NotImplemented
                 
+                # get the requested metrics and log
                 mae, rmse, coverage_rate, distance = run_numbers(poses,points,origin,world,dist_metrics==1,coverage_metrics==1)
                 distance_by_keyframe[(translation,rotation)] = distance
                 data_table[j][i] = mae
                 data_table[j][k] = rmse
+
+                # plot the coverage data
                 if coverage_metrics == 1:
                     plt.plot(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
                     plt.scatter(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
@@ -87,16 +87,20 @@ for cloud_type in ["fusion","infer","submap"]:
         k += 2
 
     if dist_metrics == 1:
+        # write a CSV file of summary accuracy metrics
         data_table = np.round(data_table,3)
         df = pd.DataFrame(data_table)
         df = df.set_axis(["MAE 1", "RMSE 1", "MAE 2", "RMSE 2", "MAE 3", "RMSE 3", "MAE 4", "RMSE 4", "MAE 5", "RMSE 5"], axis=1)
         df = df.set_axis([30,60,90], axis=0)
         df.to_csv("csv/"+scene+"_"+cloud_type+"_distance_metrics.csv")
 
+        # save the raw data so we can box plot it
         with open("csv/"+scene+"_"+cloud_type+"_distance_metrics.pickle", 'wb') as handle:
                 pickle.dump(distance_by_keyframe, handle)
 
     if coverage_metrics == 1:
+        # plot the coverage data
+
         if scene == "suny":
             plt.ylim(0,150000)
         if scene == "plane":
@@ -109,7 +113,6 @@ for cloud_type in ["fusion","infer","submap"]:
         plt.grid()
         plt.legend(legend_list)
         plt.savefig("csv/"+scene+"_"+cloud_type+".png")
-        #plt.show()
         plt.clf()
         plt.close()
 
