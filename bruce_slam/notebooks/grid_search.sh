@@ -1,4 +1,4 @@
-sim_scene="plane" #plane, penns_landing or rfal_land
+sim_scene="penns_landing" #plane, penns_landing or rfal_land
 echo "running ""$sim_scene"" simulation grid search"
 for kf_translation in 1 2 3 4 5
 do
@@ -9,17 +9,22 @@ do
 
         if [ "$sim_scene" == "plane" ]
         then
-            sleep 360
+            sleep 450
         fi
 
         if [ "$sim_scene" == "rfal_land" ]
         then
-            sleep 320
+            sleep 450
         fi
 
         if [ "$sim_scene" == "penns_landing" ]
         then
-            sleep 1140
+            sleep 1200
+        fi
+
+        if [ "$sim_scene" == "suny" ]
+        then
+            sleep 300
         fi
         
         rosnode kill -a
