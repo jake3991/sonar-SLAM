@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from utils import load_scene, load_origin, load_data_into_dict, run_numbers, get_ground_truth_map
 
 # parse the arguments, do we want to visulize and do we want to run a quant study
-scene, dist_metrics, coverage_metrics, cloud_type = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+scene, dist_metrics, coverage_metrics = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 
 # load the scene
 mesh = load_scene(scene)
@@ -40,67 +40,76 @@ origin = load_origin(scene)
 # get the ground truth comparsion object
 world = get_ground_truth_map(mesh, 10000000)
 
-# table of MAE and RMSE
-data_table = np.ones((3,10)) * -1
+# iterate over the three kinds of clouds
+for cloud_type in ["fusion","infer","submap"]:
 
-# plotting
-if coverage_metrics == 1:
-    plt.figure(figsize=(20,10))
-    legend_list = []
-    plot_symbols = ["*","o","^","x","D"]
+    # table of MAE and RMSE
+    data_table = np.ones((3,10)) * -1
+    distance_by_keyframe = {}
 
-i = 0
-k = 1
-for translation in range(1,6):
-    j = 0
-    for rotation in range(30,120,30):
-        if (translation,rotation) in pose_dict:
-            print(translation,rotation)
-            
-            # get the point cloud we want
-            if cloud_type == "submap":
-                points = submap_dict[(translation,rotation)]
-                poses = pose_dict[(translation,rotation)]
-            elif cloud_type == "fusion":
-                points = fusion_cloud_dict[(translation,rotation)]
-                poses = pose3D_dict[(translation,rotation)]
-            elif cloud_type == "infer":
-                points = inference_cloud_dict[(translation,rotation)]
-                poses = pose3D_dict[(translation,rotation)]
-            else:
-                raise NotImplemented
-            
-            mae, rmse, coverage_rate = run_numbers(poses,points,origin,world,dist_metrics==1,coverage_metrics==1)
-            print(mae,rmse)
-            data_table[j][i] = mae
-            data_table[j][k] = rmse
-            if coverage_metrics == 1:
-                plt.plot(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
-                plt.scatter(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
-                legend_list.append(str(translation) + "," + str(rotation))
-            j += 1
-    i += 2
-    k += 2
+    # plotting
+    if coverage_metrics == 1:
+        plt.figure(figsize=(20,10))
+        legend_list = []
+        plot_symbols = ["*","o","^","x","D"]
 
-if dist_metrics == 1:
-    data_table = np.round(data_table,3)
-    df = pd.DataFrame(data_table)
-    df = df.set_axis(["MAE 1", "RMSE 1", "MAE 2", "RMSE 2", "MAE 3", "RMSE 3", "MAE 4", "RMSE 4", "MAE 5", "RMSE 5"], axis=1)
-    df = df.set_axis([30,60,90], axis=0)
-    df.to_csv("csv/"+scene+"_"+cloud_type+"_distance_metrics.csv")
+    i = 0
+    k = 1
+    for translation in range(1,6):
+        j = 0
+        for rotation in range(30,120,30):
+            if (translation,rotation) in pose_dict:
+                print(translation,rotation)
+                
+                # get the point cloud we want
+                if cloud_type == "submap":
+                    points = submap_dict[(translation,rotation)]
+                    poses = pose_dict[(translation,rotation)]
+                elif cloud_type == "fusion":
+                    points = fusion_cloud_dict[(translation,rotation)]
+                    poses = pose3D_dict[(translation,rotation)]
+                elif cloud_type == "infer":
+                    points = inference_cloud_dict[(translation,rotation)]
+                    poses = pose3D_dict[(translation,rotation)]
+                else:
+                    raise NotImplemented
+                
+                mae, rmse, coverage_rate, distance = run_numbers(poses,points,origin,world,dist_metrics==1,coverage_metrics==1)
+                distance_by_keyframe[(translation,rotation)] = distance
+                data_table[j][i] = mae
+                data_table[j][k] = rmse
+                if coverage_metrics == 1:
+                    plt.plot(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
+                    plt.scatter(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
+                    legend_list.append(str(translation) + "," + str(rotation))
+                j += 1
+        i += 2
+        k += 2
 
-if coverage_metrics == 1:
-    if scene == "suny":
-        plt.ylim(0,150000)
-    if scene == "plane":
-        plt.ylim(0,50000)
-    if scene == "rfal_land":
-        plt.ylim(0,100000)
-    if scene == "penns_landing":
-        plt.ylim(0,700000)
+    if dist_metrics == 1:
+        data_table = np.round(data_table,3)
+        df = pd.DataFrame(data_table)
+        df = df.set_axis(["MAE 1", "RMSE 1", "MAE 2", "RMSE 2", "MAE 3", "RMSE 3", "MAE 4", "RMSE 4", "MAE 5", "RMSE 5"], axis=1)
+        df = df.set_axis([30,60,90], axis=0)
+        df.to_csv("csv/"+scene+"_"+cloud_type+"_distance_metrics.csv")
 
-    plt.grid()
-    plt.legend(legend_list)
-    plt.savefig("csv/"+scene+"_"+cloud_type+".png")
-    plt.show()
+        with open("csv/"+scene+"_"+cloud_type+"_distance_metrics.pickle", 'wb') as handle:
+                pickle.dump(distance_by_keyframe, handle)
+
+    if coverage_metrics == 1:
+        if scene == "suny":
+            plt.ylim(0,150000)
+        if scene == "plane":
+            plt.ylim(0,50000)
+        if scene == "rfal_land":
+            plt.ylim(0,100000)
+        if scene == "penns_landing":
+            plt.ylim(0,700000)
+
+        plt.grid()
+        plt.legend(legend_list)
+        plt.savefig("csv/"+scene+"_"+cloud_type+".png")
+        #plt.show()
+        plt.clf()
+        plt.close()
 
