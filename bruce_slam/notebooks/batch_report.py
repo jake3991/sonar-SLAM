@@ -90,8 +90,15 @@ if dist_metrics == 1:
     df.to_csv("csv/"+scene+"_"+cloud_type+"_distance_metrics.csv")
 
 if coverage_metrics == 1:
-    plt.ylim(0,150000)
-    #plt.yticks(np.linspace(0,18000,10))
+    if scene == "suny":
+        plt.ylim(0,150000)
+    if scene == "plane":
+        plt.ylim(0,50000)
+    if scene == "rfal_land":
+        plt.ylim(0,100000)
+    if scene == "penns_landing":
+        plt.ylim(0,700000)
+
     plt.grid()
     plt.legend(legend_list)
     plt.savefig("csv/"+scene+"_"+cloud_type+".png")
