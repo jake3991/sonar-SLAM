@@ -272,6 +272,7 @@ def run_numbers(poses: list, points: list, origin: gtsam.Pose3, world: o3d.geome
     point_cloud.points = o3d.utility.Vector3dVector(map)
 
     mae, rmse = -1, -1
+    distance = None
     if accuracy:
         # get the distance between the map and world
         distance = point_cloud.compute_point_cloud_distance(world)
@@ -281,4 +282,4 @@ def run_numbers(poses: list, points: list, origin: gtsam.Pose3, world: o3d.geome
         mae = np.mean(abs(distance))
         rmse = np.sqrt(np.mean(distance**2))
 
-    return mae, rmse, coverage_per_step
+    return mae, rmse, coverage_per_step, distance
