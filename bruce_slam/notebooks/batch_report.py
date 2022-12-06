@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from utils import load_scene, load_origin, load_data_into_dict, run_numbers, get_ground_truth_map
+from utils import load_scene, load_origin, load_data_into_dict, run_numbers, get_ground_truth_map, run_time_numbers
 
 # parse the arguments, do we want to visulize and do we want to run a quant study
 scene, dist_metrics, coverage_metrics = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
@@ -19,8 +19,8 @@ pose3D_paths = glob.glob("data_logs/"+scene+"/poses3D*")
 submap_paths = glob.glob("data_logs/"+scene+"/submaps_*")
 inference_cloud_paths = glob.glob("data_logs/"+scene+"/inferenceclouds*")
 fusion_cloud_paths = glob.glob("data_logs/"+scene+"/fusionclouds*")
-submap_time_paths = glob.glob("data_logs/"+scene+"/submap_times*")
-inferences_time_paths = glob.glob("data_logs/"+scene+"/bayesmap_time*")
+submap_time_paths = glob.glob("data_logs/"+scene+"/submaptimes*")
+inferences_time_paths = glob.glob("data_logs/"+scene+"/bayesmaptime*")
 
 # load up the data files
 pose_dict = load_data_into_dict(pose_paths)
@@ -42,6 +42,7 @@ for cloud_type in ["fusion","infer","submap"]:
 
     # table of MAE and RMSE
     data_table = np.ones((3,10)) * -1
+    data_time_table = np.ones((3,10)) * -1
     distance_by_keyframe = {}
 
     # plotting
@@ -57,17 +58,20 @@ for cloud_type in ["fusion","infer","submap"]:
         for rotation in range(30,120,30):
             if (translation,rotation) in pose_dict:
                 print(translation,rotation)
-                
+ 
                 # get the point cloud we want
+                run_times = None
                 if cloud_type == "submap":
                     points = submap_dict[(translation,rotation)]
                     poses = pose_dict[(translation,rotation)]
+                    run_times = submap_time_dict[(translation,rotation)]
                 elif cloud_type == "fusion":
                     points = fusion_cloud_dict[(translation,rotation)]
                     poses = pose3D_dict[(translation,rotation)]
                 elif cloud_type == "infer":
                     points = inference_cloud_dict[(translation,rotation)]
                     poses = pose3D_dict[(translation,rotation)]
+                    run_times = inferences_time_dict[(translation,rotation)]
                 else:
                     raise NotImplemented
                 
@@ -77,6 +81,12 @@ for cloud_type in ["fusion","infer","submap"]:
                 data_table[j][i] = mae
                 data_table[j][k] = rmse
 
+                # log time
+                if run_times is not None:
+                    mean_time, std_time = run_time_numbers(run_times)
+                    data_time_table[j][i] = mean_time
+                    data_time_table[j][k] = std_time
+
                 # plot the coverage data
                 if coverage_metrics == 1:
                     plt.plot(np.linspace(0,len(coverage_rate),len(coverage_rate)), coverage_rate,marker=plot_symbols[translation-1])
@@ -85,6 +95,13 @@ for cloud_type in ["fusion","infer","submap"]:
                 j += 1
         i += 2
         k += 2
+
+    # write a CSV file of summary time metrics
+    data_time_table = np.round(data_time_table,3)
+    df = pd.DataFrame(data_time_table)
+    df = df.set_axis(["Mean 1", "STD 1", "Mean 2", "STD 2", "Mean 3", "STD 3", "Mean 4", "STD 4", "Mean 5", "STD 5"], axis=1)
+    df = df.set_axis([30,60,90], axis=0)
+    df.to_csv("csv/"+scene+"_"+cloud_type+"_time_metrics.csv")
 
     if dist_metrics == 1:
         # write a CSV file of summary accuracy metrics

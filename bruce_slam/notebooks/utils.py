@@ -283,3 +283,15 @@ def run_numbers(poses: list, points: list, origin: gtsam.Pose3, world: o3d.geome
         rmse = np.sqrt(np.mean(distance**2))
 
     return mae, rmse, coverage_per_step, distance
+
+def run_time_numbers(times: list) -> list:
+    """Get the mean and standard deviation of the provided times
+
+    Args:
+        times (list): a list of run times
+
+    Returns:
+        list: [mean,STD]
+    """
+
+    return np.mean(times), np.std(times)
