@@ -32,12 +32,13 @@ def offline(args)->None:
     feature_extraction_node = FeatureExtraction()
     feature_extraction_node.init_node(SLAM_NS + "feature_extraction/")
     stereo_sonar_node = stereoSonar("")
+    stereo_sonar_node.scene = args.scene
+    stereo_sonar_node.keyframe_translation = args.translation
+    stereo_sonar_node.keyframe_rotation = np.radians(args.rotation)
     bayes_mapping_node = BaysianMappingNode()
     bayes_mapping_node.scene = args.scene 
     bayes_mapping_node.keyframe_translation = args.translation
     bayes_mapping_node.keyframe_rotation = np.radians(args.rotation)
-    print("ROTATION", args.rotation)
-
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
 
     # loop over the entire rosbag
