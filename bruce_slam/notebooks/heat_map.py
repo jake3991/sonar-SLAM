@@ -62,7 +62,7 @@ f, ax = plt.subplots(figsize=(20,10))
 cmap = sns.color_palette("plasma", as_cmap=True, n_colors=20)
 
 # Draw the heatmap with the mask and correct aspect ratio
-sns.heatmap(d, cmap=cmap,square=True, annot = labels, linewidths=.5, cbar_kws={"shrink": 0.5})
+sns.heatmap(d, cmap=cmap,square=True, annot = labels, linewidths=.5, cbar_kws={"shrink": 0.5, 'label': 'Voxel Count'})
 
 # add some ticks
 plt.xticks([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5],
@@ -79,7 +79,7 @@ for i in range(5,15,5):
     plt.plot([i,i],[0,3],linewidth=8,linestyle="-",color="white")
     
 # add the axis labels and log
-plt.xlabel("Keyframe Translation",fontsize = 20)
-plt.ylabel("Keyframe Rotation",fontsize = 20)
+plt.xlabel("Distance Between Keyframes (meters)",fontsize = 20)
+plt.ylabel("Keyframe Rotation (degrees)",fontsize = 20)
 plt.savefig("reports/"+scene+"/heatmap.png")
 plt.show()
