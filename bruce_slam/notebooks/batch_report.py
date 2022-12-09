@@ -37,6 +37,8 @@ origin = load_origin(scene)
 # get the ground truth comparsion object
 world = get_ground_truth_map(mesh, 10000000)
 
+coverage_by_keyframe = {}
+
 # iterate over the three kinds of clouds
 for cloud_type in ["fusion","infer","submap"]:
 
@@ -44,7 +46,7 @@ for cloud_type in ["fusion","infer","submap"]:
     data_table = np.ones((3,10)) * -1
     data_time_table = np.ones((3,10)) * -1
     distance_by_keyframe = {}
-
+    
     # plotting
     if coverage_metrics == 1:
         plt.figure(figsize=(20,10))
@@ -81,6 +83,9 @@ for cloud_type in ["fusion","infer","submap"]:
                 data_table[j][i] = mae
                 data_table[j][k] = rmse
 
+                # log coverage
+                coverage_by_keyframe[(cloud_type,translation,rotation)] = coverage_rate
+
                 # log time
                 if run_times is not None:
                     mean_time, std_time = run_time_numbers(run_times)
@@ -101,7 +106,7 @@ for cloud_type in ["fusion","infer","submap"]:
     df = pd.DataFrame(data_time_table)
     df = df.set_axis(["Mean 1", "STD 1", "Mean 2", "STD 2", "Mean 3", "STD 3", "Mean 4", "STD 4", "Mean 5", "STD 5"], axis=1)
     df = df.set_axis([30,60,90], axis=0)
-    df.to_csv("csv/"+scene+"_"+cloud_type+"_time_metrics.csv")
+    df.to_csv("reports/"+scene+"/"+cloud_type+"_time_metrics.csv")
 
     if dist_metrics == 1:
         # write a CSV file of summary accuracy metrics
@@ -109,14 +114,17 @@ for cloud_type in ["fusion","infer","submap"]:
         df = pd.DataFrame(data_table)
         df = df.set_axis(["MAE 1", "RMSE 1", "MAE 2", "RMSE 2", "MAE 3", "RMSE 3", "MAE 4", "RMSE 4", "MAE 5", "RMSE 5"], axis=1)
         df = df.set_axis([30,60,90], axis=0)
-        df.to_csv("csv/"+scene+"_"+cloud_type+"_distance_metrics.csv")
+        df.to_csv("reports/"+scene+"/"+cloud_type+"_distance_metrics.csv")
 
         # save the raw data so we can box plot it
-        with open("csv/"+scene+"_"+cloud_type+"_distance_metrics.pickle", 'wb') as handle:
+        with open("reports/"+scene+"/"+cloud_type+"_distance_metrics.pickle", 'wb') as handle:
                 pickle.dump(distance_by_keyframe, handle)
 
     if coverage_metrics == 1:
         # plot the coverage data
+        
+        with open("reports/"+scene+'/coverage.pickle', 'wb') as handle:
+            pickle.dump(coverage_by_keyframe, handle)
 
         if scene == "suny":
             plt.ylim(0,150000)
@@ -129,7 +137,8 @@ for cloud_type in ["fusion","infer","submap"]:
 
         plt.grid()
         plt.legend(legend_list)
-        plt.savefig("csv/"+scene+"_"+cloud_type+".png")
+        plt.savefig("reports/"+scene+"/"+cloud_type+".png")
+        #plt.show()
         plt.clf()
         plt.close()
 

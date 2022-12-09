@@ -13,7 +13,7 @@ data_frames = []
 for i, cloud_type in enumerate(["fusion","infer","submap"]):
 
     # load up the data
-    file = open("csv/"+scene+"_"+cloud_type+"_distance_metrics.pickle",'rb')
+    file = open("csv/"+scene+"/"+cloud_type+"_distance_metrics.pickle",'rb')
     table = pickle.load(file)
 
     # loop and push data into pandas, append to list
