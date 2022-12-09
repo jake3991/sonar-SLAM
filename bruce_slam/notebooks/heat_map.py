@@ -43,6 +43,12 @@ for i,cloud_type in enumerate(["fusion","infer","submap"]):
                 heat_map[rotation//30 - 1][step_submap] = vals[-1]
                 step_submap += 1
 
+
+labels = np.array(heat_map)
+for i in range(len(labels)):
+    for j in range(len(labels[0])):
+        labels[i][j] = np.round(labels[i][j] / 10000,2)
+
 sns.set_theme(style="white")
 
 # Generate a large random dataset
@@ -56,7 +62,7 @@ f, ax = plt.subplots(figsize=(20,10))
 cmap = sns.color_palette("magma", as_cmap=True, n_colors=20)
 
 # Draw the heatmap with the mask and correct aspect ratio
-sns.heatmap(d, cmap=cmap,square=True, linewidths=.5, cbar_kws={"shrink": 0.5})
+sns.heatmap(d, cmap=cmap,square=True, annot = labels, linewidths=.5, cbar_kws={"shrink": 0.5})
 
 # add some ticks
 plt.xticks([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5],
