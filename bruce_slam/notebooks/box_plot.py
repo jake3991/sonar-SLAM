@@ -13,7 +13,7 @@ data_frames = []
 for i, cloud_type in enumerate(["fusion","infer","submap"]):
 
     # load up the data
-    file = open("csv/"+scene+"/"+cloud_type+"_distance_metrics.pickle",'rb')
+    file = open("reports/"+scene+"/"+cloud_type+"_distance_metrics.pickle",'rb')
     table = pickle.load(file)
 
     # loop and push data into pandas, append to list
@@ -37,5 +37,5 @@ plt.xlabel("")
 plt.ylabel("Absolute Error, Meters",fontsize=40)
 plt.xlabel("")
 plt.legend(title='Keyframe Spacing', fontsize = 16, loc='center left', bbox_to_anchor=(1, 0.5))
-plt.savefig("csv/"+scene+".png")
+plt.savefig("reports/"+scene+"/box_plot.png")
 plt.show()

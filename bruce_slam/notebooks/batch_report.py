@@ -21,6 +21,7 @@ inference_cloud_paths = glob.glob("data_logs/"+scene+"/inferenceclouds*")
 fusion_cloud_paths = glob.glob("data_logs/"+scene+"/fusionclouds*")
 submap_time_paths = glob.glob("data_logs/"+scene+"/submaptimes*")
 inferences_time_paths = glob.glob("data_logs/"+scene+"/bayesmaptime*")
+fusion_time_paths = glob.glob("data_logs/"+scene+"/fusiontime*")
 
 # load up the data files
 pose_dict = load_data_into_dict(pose_paths)
@@ -30,6 +31,7 @@ inference_cloud_dict = load_data_into_dict(inference_cloud_paths)
 fusion_cloud_dict = load_data_into_dict(fusion_cloud_paths)
 submap_time_dict = load_data_into_dict(submap_time_paths)
 inferences_time_dict = load_data_into_dict(inferences_time_paths)
+fusion_time_dict = load_data_into_dict(fusion_time_paths)
 
 # ground truth location, the starting point of the robot in gazebo
 origin = load_origin(scene)
@@ -44,8 +46,9 @@ for cloud_type in ["fusion","infer","submap"]:
 
     # table of MAE and RMSE
     data_table = np.ones((3,10)) * -1
-    data_time_table = np.ones((3,10)) * -1
+    #data_time_table = np.ones((3,10)) * -1
     distance_by_keyframe = {}
+    all_times = []
     
     # plotting
     if coverage_metrics == 1:
@@ -70,6 +73,7 @@ for cloud_type in ["fusion","infer","submap"]:
                 elif cloud_type == "fusion":
                     points = fusion_cloud_dict[(translation,rotation)]
                     poses = pose3D_dict[(translation,rotation)]
+                    run_times = fusion_time_dict[(translation,rotation)]
                 elif cloud_type == "infer":
                     points = inference_cloud_dict[(translation,rotation)]
                     poses = pose3D_dict[(translation,rotation)]
@@ -88,9 +92,10 @@ for cloud_type in ["fusion","infer","submap"]:
 
                 # log time
                 if run_times is not None:
-                    mean_time, std_time = run_time_numbers(run_times)
-                    data_time_table[j][i] = mean_time
-                    data_time_table[j][k] = std_time
+                    all_times += run_times
+                    #mean_time, std_time = run_time_numbers(run_times)
+                    #data_time_table[j][i] = mean_time
+                    #data_time_table[j][k] = std_time
 
                 # plot the coverage data
                 if coverage_metrics == 1:
@@ -102,10 +107,11 @@ for cloud_type in ["fusion","infer","submap"]:
         k += 2
 
     # write a CSV file of summary time metrics
+    data_time_table = np.array([np.mean(all_times),np.std(all_times)])
     data_time_table = np.round(data_time_table,3)
     df = pd.DataFrame(data_time_table)
-    df = df.set_axis(["Mean 1", "STD 1", "Mean 2", "STD 2", "Mean 3", "STD 3", "Mean 4", "STD 4", "Mean 5", "STD 5"], axis=1)
-    df = df.set_axis([30,60,90], axis=0)
+    df = df.set_axis(["Mean", "STD"], axis=0)
+    #df = df.set_axis([1], axis=0)
     df.to_csv("reports/"+scene+"/"+cloud_type+"_time_metrics.csv")
 
     if dist_metrics == 1:
