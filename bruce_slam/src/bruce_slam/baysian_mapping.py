@@ -58,6 +58,9 @@ class keyframe():
          self.rerun = [True, True]
          self.containsPoints = False
          self.segcontainsPoints = False
+         self.fusedCloudReg = None
+         self.constructedCloudReg = None
+         self.segCloudReg = None
          
 
     def real2pix(self,points: np.array) -> np.array:
@@ -152,6 +155,7 @@ class BaysianMappingNode():
         self.keyframe_translation = None
         self.keyframe_rotation = None
         self.time_log = []
+        self.vis_3D = True
 
         # ICP for object registration
         self.icp = pcl.ICP()
@@ -786,7 +790,10 @@ class BaysianMappingNode():
         """
 
         #publish the map, seg and 3D
-        self.publishMap()
+        if self.vis_3D:
+            self.publishMap()
+        else:
+            self.updatePoses()
 
         #log the data
         if self.scene is not None:
@@ -836,14 +843,27 @@ class BaysianMappingNode():
         with open(path + 'bayesmaptime_'+file_name+'.pickle', 'wb') as handle:
             pickle.dump(self.time_log, handle)
 
+    def updatePoses(self) -> None:
+        """Update the poses, only use this function if 
+        you are not running self.publishMap
+        """
+
+        # update all the old keyframes based on the new poses
+        for i in range(len(self.keyframes)):
+            self.keyframes[i].pose = self.poses[i]
+            self.keyframes[i].rot = Rotation.from_euler('xyz', 
+                    np.degrees([self.keyframes[i].pose[3], 
+                    self.keyframes[i].pose[4], self.keyframes[i].pose[5]]), 
+                    degrees = True).as_matrix()
+
     def publishMap(self) -> None:
         """Publish the maps
         """
 
         # create a blank cloud
-        cloudOut = np.column_stack(([], [], []))
-        segCloudOut = np.column_stack(([], [], []))
-        simpleCloudOut = np.column_stack(([], [], []))
+        cloudOut = []
+        simpleCloudOut = []
+        segCloudOut = []
         segColors = []
 
         if self.poses is None:
@@ -852,39 +872,55 @@ class BaysianMappingNode():
         # update all the old keyframes based on the new poses
         for i in range(len(self.keyframes)):
 
-            #update the poses
-            self.keyframes[i].pose = self.poses[i]
+            # check if we actually need to update the pose
+            update = False
+            if self.keyframes[i].pose is None or np.sum(abs(self.keyframes[i].pose - self.poses[i])) > 0:
+                #update the rotation matrix and pose
+                update = True
+                self.keyframes[i].pose = self.poses[i]
+                self.keyframes[i].rot = Rotation.from_euler('xyz', 
+                        np.degrees([self.keyframes[i].pose[3], 
+                        self.keyframes[i].pose[4], self.keyframes[i].pose[5]]), 
+                        degrees = True).as_matrix()
 
-            #update the rotation matrix
-            self.keyframes[i].rot = Rotation.from_euler('xyz', 
-                    np.degrees([self.keyframes[i].pose[3], self.keyframes[i].pose[4], self.keyframes[i].pose[5]]), degrees = True).as_matrix()
 
-            # register the point cloud to the global frame
-            cloud = self.keyframes[i].fusedCloud.dot(self.keyframes[i].rot.T)
-            cloud += np.array([self.keyframes[i].pose[0], self.keyframes[i].pose[1], self.keyframes[i].pose[2]])
-            simpleCloudOut = np.row_stack((simpleCloudOut, cloud))
+            if self.keyframes[i].fusedCloudReg is None or update: 
+                # register the point cloud to the global frame
+                cloud = self.keyframes[i].fusedCloud.dot(self.keyframes[i].rot.T)
+                cloud += np.array([self.keyframes[i].pose[0], self.keyframes[i].pose[1], self.keyframes[i].pose[2]])
+                self.keyframes[i].fusedCloudReg = cloud
+            #simpleCloudOut = np.row_stack((simpleCloudOut, self.keyframes[i].fusedCloudReg))
+            simpleCloudOut.append(self.keyframes[i].fusedCloudReg)
 
             # if the cloud has any contents
             if self.keyframes[i].containsPoints == True:
-
                 # register the point cloud to the global frame
-                cloud = self.keyframes[i].constructedCloud
-                cloud = cloud.dot(self.keyframes[i].rot.T)
-                cloud += np.array([self.keyframes[i].pose[0], self.keyframes[i].pose[1], self.keyframes[i].pose[2]])
-
-                # Add this timestep to the whole cloud
-                cloudOut = np.row_stack((cloudOut,cloud))
+                if self.keyframes[i].constructedCloudReg is None or update: 
+                    cloud = self.keyframes[i].constructedCloud
+                    cloud = cloud.dot(self.keyframes[i].rot.T)
+                    cloud += np.array([self.keyframes[i].pose[0], 
+                                        self.keyframes[i].pose[1], 
+                                        self.keyframes[i].pose[2]])
+                    self.keyframes[i].constructedCloudReg = cloud
+                #cloudOut = np.row_stack((cloudOut,self.keyframes[i].constructedCloudReg))
+                cloudOut.append(self.keyframes[i].constructedCloudReg)
 
             # check the segmented cloud for any contents
             if self.keyframes[i].segcontainsPoints == True:
-
                 # register the segmented cloud to the global frame
-                cloud = self.keyframes[i].segCloud.dot(self.keyframes[i].rot.T)
-                cloud += np.array([self.keyframes[i].pose[0], self.keyframes[i].pose[1], self.keyframes[i].pose[2]])
-
-                # add this timestep to the cloud
-                segCloudOut = np.row_stack((segCloudOut, cloud))
+                if self.keyframes[i].segCloudReg is None or update: 
+                    cloud = self.keyframes[i].segCloud.dot(self.keyframes[i].rot.T)
+                    cloud += np.array([self.keyframes[i].pose[0], 
+                                        self.keyframes[i].pose[1], 
+                                        self.keyframes[i].pose[2]])
+                    self.keyframes[i].segCloudReg = cloud
+                segCloudOut.append(self.keyframes[i].segCloudReg)
                 segColors += self.keyframes[i].segInfo[1]
+        
+        # convert the nested lists to one big array
+        cloudOut = np.concatenate(cloudOut)
+        simpleCloudOut = np.concatenate(simpleCloudOut)
+        segCloudOut = np.concatenate(segCloudOut)
 
         # remove points above the surface
         cloudOut = cloudOut[cloudOut[:,2] >= 0]
@@ -965,10 +1001,12 @@ class BaysianMappingNode():
         self.keyframes.append(frame)
         self.numKeyframes += 1
 
+        # log the time it took to run this callback
+        self.time_log.append(time.time() - start_time)
+
         # publish the new info
         self.publishUpdate()
 
-        # log the time it took to run this callback
-        self.time_log.append(time.time() - start_time)
+        
 
 

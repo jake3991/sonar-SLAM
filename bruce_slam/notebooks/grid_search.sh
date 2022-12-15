@@ -1,4 +1,4 @@
-sim_scene="penns_landing" #plane, penns_landing or rfal_land
+sim_scene="suny" #plane, penns_landing, suny or rfal_land
 echo "running ""$sim_scene"" simulation grid search"
 for kf_translation in 1 2 3 4 5
 do
@@ -19,7 +19,7 @@ do
 
         if [ "$sim_scene" == "penns_landing" ]
         then
-            sleep 1200
+            sleep 1560
         fi
 
         if [ "$sim_scene" == "suny" ]

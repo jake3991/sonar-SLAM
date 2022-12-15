@@ -39,6 +39,7 @@ def offline(args)->None:
     bayes_mapping_node.scene = args.scene 
     bayes_mapping_node.keyframe_translation = args.translation
     bayes_mapping_node.keyframe_rotation = np.radians(args.rotation)
+    bayes_mapping_node.vis_3D = False
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
 
     # loop over the entire rosbag
@@ -94,6 +95,7 @@ if __name__ == "__main__":
         node.keyframe_rotation = np.radians(args.rotation)
     if args.scene is not None:
         node.scene = args.scene 
+    node.vis_3D = False
 
     if not args.file:
         loginfo("Start online slam...")

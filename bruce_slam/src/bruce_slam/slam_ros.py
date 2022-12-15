@@ -156,6 +156,7 @@ class SLAMNode(SLAM):
 
         # place holder for logging
         self.submap_build_time = []
+        self.vis_3D = True
 
         #call the configure function
         self.configure()
@@ -347,7 +348,8 @@ class SLAMNode(SLAM):
         self.publish_trajectory()
         self.publish_constraint()
         self.publish_point_cloud()
-        self.publish_submaps()
+        if self.vis_3D:
+            self.publish_submaps()
         if self.scene != "":
             self.log()
 
@@ -356,7 +358,7 @@ class SLAMNode(SLAM):
         """
 
         # container for the output, all the submaps in our system
-        all_submaps= None
+        all_submaps = []
         
         # loop over each keyframe
         for index in range(len(self.keyframes)):
@@ -375,15 +377,12 @@ class SLAMNode(SLAM):
                 H = pose.matrix().astype(np.float32)
                 submap = submap.dot(H[:3, :3].T) + H[:3, 3]
 
-                # concat this submap
-                if all_submaps is None:
-                    all_submaps = submap
-                else:
-                    all_submaps = np.row_stack((all_submaps,submap))
+                # add this submap
+                all_submaps.append(submap)
 
         # package and publish
-        if all_submaps is not None:
-            msg = n2r(all_submaps, "PointCloudXYZ")
+        if len(all_submaps) > 0:
+            msg = n2r(np.concatenate(all_submaps), "PointCloudXYZ")
             msg.header.frame_id = "map"
             self.submap_pub.publish(msg)
 
