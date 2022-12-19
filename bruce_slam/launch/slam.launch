@@ -58,12 +58,8 @@
 
         </group>
         <node pkg="tf" name="map_to_world_tf_publisher" type="static_transform_publisher" args="0 0 0 0 0 3.14159 world map 100"/>
-        <node pkg="tf" name="base_link_to_sonar_link" type="static_transform_publisher" args="1.15 0 0 0 0 0 base_link sonar_link 100"/>
     </group>
 
     <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find bruce_slam)/rviz/video.rviz" />
-    <node pkg="bruce_slam" name="horizontal_compressor" type="image_compressor.py" args="1" output="screen"/>
-    <node pkg="bruce_slam" name="vertical_compressor" type="image_compressor.py" args="2" output="screen"/>
-    
-    
+ 
 </launch>

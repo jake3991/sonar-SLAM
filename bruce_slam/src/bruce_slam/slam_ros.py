@@ -188,7 +188,7 @@ class SLAMNode(SLAM):
         if self.keyframes:
             time = odom_msg.header.stamp
             dr_pose3 = r2g(odom_msg.pose.pose)
-            dr_pose3 = dr_pose3.compose(gtsam.Pose3(gtsam.Pose2(1.15,0,0))) # transform from base_link to sonar_link
+            dr_pose3 = dr_pose3.compose(gtsam.Pose3(gtsam.Pose2(0.35,0,0))) # transform from base_link to sonar_link
             frame = Keyframe(False, time, dr_pose3)
             dr_odom = self.current_keyframe.dr_pose.between(frame.dr_pose)
             pose = self.current_keyframe.pose.compose(dr_odom)
@@ -226,7 +226,7 @@ class SLAMNode(SLAM):
 
                 #package as a GTSAM pose
                 pose = n2g([x,y,z,roll-1.5708,pitch,yaw],"Pose3")
-                pose = pose.compose(gtsam.Pose3(gtsam.Pose2(1.15,0,0)))
+                pose = pose.compose(gtsam.Pose3(gtsam.Pose2(0.35,0,0)))
 
                 #log the cloud and transform into the system
                 self.keyframes[-1].odom_tranforms.append(pose)
@@ -254,7 +254,7 @@ class SLAMNode(SLAM):
 
         #get the dead reckoning pose from the odom msg, GTSAM pose object
         dr_pose3 = r2g(odom_msg.pose.pose)
-        dr_pose3 = dr_pose3.compose(gtsam.Pose3(gtsam.Pose2(1.15,0,0))) # transform from base_link to sonar_link
+        dr_pose3 = dr_pose3.compose(gtsam.Pose3(gtsam.Pose2(0.35,0,0))) # transform from base_link to sonar_link
 
         #init a new key frame
         frame = Keyframe(False, time_frame, dr_pose3)
@@ -400,7 +400,7 @@ class SLAMNode(SLAM):
 
         # apply the transform from sonar_link to base_link
         current_pose = self.current_frame.pose3
-        current_pose = current_pose.compose(gtsam.Pose3(gtsam.Pose2(-1.15,0,0)))
+        current_pose = current_pose.compose(gtsam.Pose3(gtsam.Pose2(-0.35,0,0)))
         pose_msg.pose.pose = g2r(current_pose)
 
         cov = 1e-4 * np.identity(6, np.float32)
@@ -424,6 +424,8 @@ class SLAMNode(SLAM):
         self.tf.sendTransform(
             (p.x, p.y, p.z), (q.x, q.y, q.z, q.w), odom_msg.header.stamp, odom_msg.child_frame_id, pose_msg.header.frame_id
         )
+
+        self.tf.sendTransform((0.35, 0, 0), [0, 0, 0, 1], odom_msg.header.stamp, "sonar_link", "base_link")
 
     def publish_constraint(self)->None:
         """Publish constraints between poses in the factor graph,

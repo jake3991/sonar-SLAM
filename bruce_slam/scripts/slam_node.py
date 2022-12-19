@@ -95,7 +95,7 @@ if __name__ == "__main__":
         node.keyframe_rotation = np.radians(args.rotation)
     if args.scene is not None:
         node.scene = args.scene 
-    node.vis_3D = False
+        node.vis_3D = False
 
     if not args.file:
         loginfo("Start online slam...")
