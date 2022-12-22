@@ -156,6 +156,8 @@ def load_origin(scene: str) -> gtsam.Pose3:
         return gtsam.Pose3(gtsam.Pose2(-20,15,1.5708))
     elif scene == "suny":
         return gtsam.Pose3(gtsam.Pose2(0,0,0))
+    elif scene == "suny_pier":
+        return gtsam.Pose3(gtsam.Pose2(0,0,0))
     else:
         raise NotImplementedError
 

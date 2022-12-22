@@ -11,7 +11,7 @@ from utils import load_scene, load_origin, load_data_into_dict, run_numbers, get
 scene, dist_metrics, coverage_metrics = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 
 # load the scene
-mesh = load_scene(scene)
+#mesh = load_scene(scene)
 
 # get the datafiles via glob
 pose_paths = glob.glob("data_logs/"+scene+"/poses_*")
@@ -35,9 +35,6 @@ fusion_time_dict = load_data_into_dict(fusion_time_paths)
 
 # ground truth location, the starting point of the robot in gazebo
 origin = load_origin(scene)
-
-# get the ground truth comparsion object
-world = get_ground_truth_map(mesh, 10000000)
 
 coverage_by_keyframe = {}
 
@@ -82,7 +79,7 @@ for cloud_type in ["fusion","infer","submap"]:
                     raise NotImplemented
                 
                 # get the requested metrics and log
-                mae, rmse, coverage_rate, distance = run_numbers(poses,points,origin,world,dist_metrics==1,coverage_metrics==1)
+                mae, rmse, coverage_rate, distance = run_numbers(poses,points,origin,None,False,coverage_metrics==1)
                 distance_by_keyframe[(translation,rotation)] = distance
                 data_table[j][i] = mae
                 data_table[j][k] = rmse

@@ -1,30 +1,21 @@
-sim_scene="suny" #plane, penns_landing, suny or rfal_land
+sim_scene="waterfront" #plane, penns_landing, suny or rfal_land
 echo "running ""$sim_scene"" simulation grid search"
 for kf_translation in 1 2 3 4 5
 do
     for kf_rotation in 30 60 90
     do 
         echo $kf_translation" "$kf_rotation
-        roslaunch bruce_slam slam.launch file:="/home/jake/Desktop/sim_bags/"$sim_scene".bag" rotation:=$kf_rotation translation:=$kf_translation scene:=$sim_scene &
 
-        if [ "$sim_scene" == "plane" ]
+        if [ "$sim_scene" == "suny_pier" ]
         then
-            sleep 450
+            roslaunch bruce_slam slam.launch file:="/home/jake/Desktop/real_bags/deep_2020-08-19-13-51-45.bag" duration:=385 rotation:=$kf_rotation translation:=$kf_translation scene:=$sim_scene &
+            sleep 700
         fi
 
-        if [ "$sim_scene" == "rfal_land" ]
+        if [ "$sim_scene" == "waterfront" ]
         then
-            sleep 450
-        fi
-
-        if [ "$sim_scene" == "penns_landing" ]
-        then
-            sleep 1560
-        fi
-
-        if [ "$sim_scene" == "suny" ]
-        then
-            sleep 300
+            roslaunch bruce_slam slam.launch file:="/home/jake/Desktop/real_bags/wtr4_2020-08-19-13-28-21.bag" start:=260 end:=520 rotation:=$kf_rotation translation:=$kf_translation scene:=$sim_scene &
+            sleep 630
         fi
         
         rosnode kill -a

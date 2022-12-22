@@ -39,6 +39,7 @@ class DeadReckoningNode(object):
 		self.imu_pose = [0, 0, 0, -np.pi / 2, 0, 0]
 		self.imu_rot = None
 		self.dvl_max_velocity = 0.3
+		
 
 		# Create a new key pose when
 		# - |ti - tj| > min_duration and
@@ -71,12 +72,14 @@ class DeadReckoningNode(object):
 		self.dvl_sub = Subscriber(DVL_TOPIC, DVL)
 		self.gyro_sub = Subscriber(GYRO_INTEGRATION_TOPIC, Odometry)
 		self.depth_sub = Subscriber(DEPTH_TOPIC, Depth)
-		self.depth_cache = Cache(self.depth_sub, 1)
+		self.depth_cache = Cache(self.depth_sub, 20)
 
 		if rospy.get_param(ns + "imu_version") == 1:
 			self.imu_sub = Subscriber(IMU_TOPIC, Imu)
+			self.roll_correction = np.radians(0)
 		elif rospy.get_param(ns + "imu_version") == 2:
 			self.imu_sub = Subscriber(IMU_TOPIC_MK_II, Imu)
+			self.roll_correction = np.radians(0)
 
 		# Use point cloud for visualization
 		self.traj_pub = rospy.Publisher(
@@ -119,8 +122,8 @@ class DeadReckoningNode(object):
 		#check the delay between the depth message and the DVL
 		dd_delay = (depth_msg.header.stamp - dvl_msg.header.stamp).to_sec()
 		#print(dd_delay)
-		if abs(dd_delay) > 1.0:
-			logdebug("Missing depth message for {}".format(dd_delay))
+		#if abs(dd_delay) > 1.0:
+		#		logdebug("Missing depth message for {}".format(dd_delay))
 
 		#convert the imu message from msg to gtsam rotation object
 		rot = r2g(imu_msg.orientation)
@@ -132,7 +135,7 @@ class DeadReckoningNode(object):
 
 		# Get a rotation matrix
 		# if use_gyro has the same value in Kalman and DeadReck, use this line
-		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), rot.roll())
+		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), self.roll_correction+rot.roll())
 		# if use_gyro = True in Kalman and use_gyro = False in DeadReck, use this line:
 		# rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 

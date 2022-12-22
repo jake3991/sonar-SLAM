@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 
 from utils import load_scene, aggragate_points, load_origin
 
-scene = "penns_landing"
+scene = "suny_pier"
 
 # open the SLAM data
-file = open("data_logs/"+scene+"/poses_4_30.pickle",'rb')
+file = open("data_logs/"+scene+"/poses3D_1_30.pickle",'rb')
 poses = pickle.load(file)
 file.close()
-file = open("data_logs/"+scene+"/submaps_4_30.pickle",'rb')
+file = open("data_logs/"+scene+"/inferenceclouds_1_30.pickle",'rb')
 submaps = pickle.load(file)
 file.close()
 

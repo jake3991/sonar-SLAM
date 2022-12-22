@@ -135,6 +135,9 @@ class SLAMNode(SLAM):
         self.pose_history_pub = rospy.Publisher(
                     "pose_history", PoseHistory, queue_size=1, latch=True)
 
+        self.kf_pub = rospy.Publisher("step",PoseHistory,queue_size=10)
+        self.kf_count = 0
+        
         #tf broadcaster to show pose
         self.tf = tf.TransformBroadcaster()
 
@@ -282,6 +285,14 @@ class SLAMNode(SLAM):
         #check frame staus, are we actually adding a keyframe? This is determined based on distance 
         #traveled according to dead reckoning
         if frame.status:
+
+            pose_history_msg = PoseHistory()
+            pose_history_msg.header = Header()
+            pose_history_msg.header.frame_id = ""
+            pose_history_msg.header.stamp = time_frame
+            pose_history_msg.data = list([self.kf_count])
+            self.kf_count += 1
+            self.kf_pub.publish(pose_history_msg)
 
             #add the point cloud to the frame
             frame.points = points

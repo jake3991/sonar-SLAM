@@ -27,9 +27,14 @@
         </group>
     </group>
 
+    
+
     <!-- online mode -->
     <group ns="bruce" if="$(eval arg('file') == '')">
         <group ns="slam">
+
+            <node pkg="bruce_slam" name="bayes_map" type="test_mapping_node.py" output="screen">
+            </node>
 
             <!-- start stereo sonar-->
             <include file="$(find stereo_sonar)/launch/stereoSonar.launch"/>

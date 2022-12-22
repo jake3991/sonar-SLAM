@@ -39,7 +39,7 @@ def offline(args)->None:
     bayes_mapping_node.scene = args.scene 
     bayes_mapping_node.keyframe_translation = args.translation
     bayes_mapping_node.keyframe_rotation = np.radians(args.rotation)
-    bayes_mapping_node.vis_3D = False
+    #bayes_mapping_node.vis_3D = False
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
 
     # loop over the entire rosbag
@@ -51,7 +51,7 @@ def offline(args)->None:
         if rospy.is_shutdown():
             break
 
-        if topic == IMU_TOPIC:
+        if topic == IMU_TOPIC or topic == IMU_TOPIC_MK_II:
             dead_reckoning_node.imu_sub.callback(msg)
         elif topic == DVL_TOPIC:
             dead_reckoning_node.dvl_sub.callback(msg)
@@ -67,13 +67,13 @@ def offline(args)->None:
             stereo_sonar_node.verticalSonarSub.callback(msg)            
 
         # use the IMU to drive the clock
-        if topic == IMU_TOPIC:
+        if topic == IMU_TOPIC or topic == IMU_TOPIC_MK_II:
 
             clock_pub.publish(Clock(msg.header.stamp))
 
             # Publish map to world so we can visualize all in a z-down frame in rviz.
             node.tf.sendTransform((0, 0, 0), [1, 0, 0, 0], msg.header.stamp, "map", "world")
-            node.tf.sendTransform((1.15, 0, 0), [1, 0, 0, 0], msg.header.stamp, "sonar_link", "base_link")
+            #node.tf.sendTransform((1.15, 0, 0), [1, 0, 0, 0], msg.header.stamp, "sonar_link", "base_link")
     
 
 if __name__ == "__main__":
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         node.keyframe_rotation = np.radians(args.rotation)
     if args.scene is not None:
         node.scene = args.scene 
-        node.vis_3D = False
+        #node.vis_3D = False
 
     if not args.file:
         loginfo("Start online slam...")
