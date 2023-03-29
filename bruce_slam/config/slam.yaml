@@ -13,11 +13,11 @@ icp_odom_sigmas: [0.1, 0.1, 0.01]
 icp_config: $(find bruce_slam)/config/icp.yaml
 
 # Downsample points for ICP/publishing
-point_resolution: 0.5
+point_resolution: 0.3
 
 # Sequential scan matching (SSM)
 ssm:
-  enable: True # is this module enabled?
+  enable: False # is this module enabled?
   min_points: 50 # the min number of points to try SSM
   max_translation: 3.0 # the max translation allowed
   max_rotation: deg(30) # the max rotation allowed
@@ -35,7 +35,7 @@ nssm:
 
 # the PCM params for rejecting outlier loop closures
 pcm_queue_size: 5 # the sliding window size for PCM
-min_pcm: 2 # the min number of pairwise consistent loop closures
+min_pcm: 3 # the min number of pairwise consistent loop closures
 
 # TODO remove this param
 # Number of samples to compute the probability of
