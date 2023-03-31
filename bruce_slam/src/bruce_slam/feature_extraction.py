@@ -234,11 +234,15 @@ class FeatureExtraction(object):
 
         vis_img = cv2.remap(img, self.map_x, self.map_y, cv2.INTER_LINEAR)
         vis_img = cv2.applyColorMap(vis_img, 2)
-        self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
-
+        vis_img_copy = np.array(vis_img)
+        
         #convert to cartisian
         peaks = cv2.remap(peaks, self.map_x, self.map_y, cv2.INTER_LINEAR)        
         locs = np.c_[np.nonzero(peaks)]
+        for loc in locs:
+                cv2.circle(vis_img_copy, (loc[1],loc[0]),5, (0,0,255), -1)
+        vis_img = np.column_stack((vis_img,vis_img_copy))
+        self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
 
         #convert from image coords to meters
         x = locs[:,1] - self.cols / 2.
@@ -246,7 +250,7 @@ class FeatureExtraction(object):
         y = (-1*(locs[:,0] / float(self.rows)) * self.height) + self.height
         points = np.column_stack((y,x))
 
-        #filter the cloud using PCL
+        '''#filter the cloud using PCL
         if len(points) and self.resolution > 0:
             points = pcl.downsample(points, self.resolution)
 
@@ -255,7 +259,7 @@ class FeatureExtraction(object):
             # points = pcl.density_filter(points, 5, self.min_density, 1000)
             points = pcl.remove_outlier(
                 points, self.outlier_filter_radius, self.outlier_filter_min_points
-            )
+            )'''
         
         #publish the feature message
         self.publish_features(sonar_msg, points)
