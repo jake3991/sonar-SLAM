@@ -130,7 +130,7 @@ class FeatureExtraction(object):
         self.feature_img_pub = rospy.Publisher(
             SONAR_FEATURE_IMG_TOPIC, Image, queue_size=10)
         
-        self.sonar_config = holoocean.packagemanager.get_scenario("test")
+        self.sonar_config = holoocean.packagemanager.get_scenario("rfal_land_single_sonar")
 
         self.configure()
 
