@@ -130,6 +130,8 @@ class FeatureExtraction(object):
         self.feature_img_pub = rospy.Publisher(
             SONAR_FEATURE_IMG_TOPIC, Image, queue_size=10)
         
+        self.passthrough_pub = rospy.Publisher("sonar_repeater", OculusPing, queue_size=10)
+        
         self.sonar_config = holoocean.packagemanager.get_scenario("rfal_land_single_sonar")
 
         self.configure()
@@ -208,6 +210,8 @@ class FeatureExtraction(object):
         sonar_msg: an OculusPing messsage, in polar coordinates
         '''
 
+        self.passthrough_pub.publish(sonar_msg)
+
         if sonar_msg.ping_id % self.skip != 0:
             self.feature_img = None
             # Don't extract features in every frame.
@@ -250,12 +254,12 @@ class FeatureExtraction(object):
         y = (-1*(locs[:,0] / float(self.rows)) * self.height) + self.height
         points = np.column_stack((y,x))
 
-        '''#filter the cloud using PCL
+        #filter the cloud using PCL
         if len(points) and self.resolution > 0:
             points = pcl.downsample(points, self.resolution)
 
         #remove some outliars
-        if self.outlier_filter_min_points > 1 and len(points) > 0:
+        '''if self.outlier_filter_min_points > 1 and len(points) > 0:
             # points = pcl.density_filter(points, 5, self.min_density, 1000)
             points = pcl.remove_outlier(
                 points, self.outlier_filter_radius, self.outlier_filter_min_points

@@ -71,7 +71,8 @@ class Keyframe(object):
         between_pose=None, 
         index=None, 
         vin=None, 
-        index_kf=None
+        index_kf=None,
+        img=None
     ):
         """Class constructor for a keyframe
 

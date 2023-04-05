@@ -70,7 +70,7 @@ class SLAM(object):
         self.point_resolution = 0.5
 
         # Noise radius in overlap estimation
-        self.point_noise = 0.5
+        self.point_noise = 0.3
 
         # paramters for sequnetial scan matching (SSM)
         self.ssm_params = SMParams()  # object to hold all the params
@@ -354,7 +354,7 @@ class SLAM(object):
                 sample_transforms.append((x, y, theta))
 
             # enforce a max run time for this loop
-            if time_pkg.time() - start >= 2.0:
+            if time_pkg.time() - start >= 5.0:
                 break
 
         # check if we have enough transforms to get a covariance
@@ -1087,6 +1087,13 @@ class SLAM(object):
             
         # apply geometric verification, in this case PCM
         if ret2.status:
+            
+            '''temp = Keyframe.transform_points(ret2.source_points, ret2.estimated_transform)
+            plt.scatter(-temp[:,0],temp[:,1],s=2.5)
+            plt.scatter(-ret2.target_points[:,0],ret2.target_points[:,1],s=5)
+            plt.axis("square")
+            plt.savefig("/home/jake/Desktop/holoocean_bags/loops/"+str(ret2.source_key)+".png")
+            plt.clf()'''
 
             # update the pcm queue
             while (
@@ -1129,6 +1136,7 @@ class SLAM(object):
                     )
                     ret2.inserted = True  # update the status of this loop closure, don't add a loop twice
 
+        print(ret2.status)
         return ret2
 
     def is_keyframe(self, frame: Keyframe) -> bool:

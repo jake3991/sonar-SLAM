@@ -2,8 +2,10 @@
 import threading
 import tf
 import rospy
+import pickle
 import cv_bridge
 from nav_msgs.msg import Odometry
+from rosgraph_msgs.msg import Clock
 from message_filters import  Subscriber
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker
@@ -16,6 +18,7 @@ from bruce_slam.utils.conversions import *
 from bruce_slam.utils.visualization import *
 from bruce_slam.slam import SLAM, Keyframe
 from bruce_slam import pcl
+from bruce_slam.utils.topics import *
 
 # Argonaut imports
 from sonar_oculus.msg import OculusPing
@@ -86,10 +89,12 @@ class SLAMNode(SLAM):
         #define the subsrcibing topics
         self.feature_sub = Subscriber(SONAR_FEATURE_TOPIC, PointCloud2)
         self.odom_sub = Subscriber(LOCALIZATION_ODOM_TOPIC, Odometry)
+        self.sonar_img_sub = Subscriber("sonar_repeater", OculusPing)
+        self.shutdown_sub = rospy.Subscriber("shutdown",Clock,callback=self.log_data)
 
         #define the sync policy
         self.time_sync = ApproximateTimeSynchronizer(
-            [self.feature_sub, self.odom_sub], 20, 
+            [self.feature_sub, self.odom_sub, self.sonar_img_sub ], 20, 
             self.feature_odom_sync_max_delay, allow_headerless = False)
 
         #register the callback in the sync policy
@@ -126,10 +131,56 @@ class SLAMNode(SLAM):
         
         # define the robot ID this is not used here, extended in multi-robot SLAM
         self.rov_id = ""
+        self.run = 0
 
         #call the configure function
         self.configure()
         loginfo("SLAM node is initialized")
+
+    def log_data(self, msg:Clock) -> None:
+        """Log the SLAM data
+
+        Args:
+            msg (Clock): a dummy message to run this callback
+        """
+
+        #get my own SLAM results
+        my_poses = []
+        my_points = []
+        my_points_basic = []
+        my_images = []
+        for frame in self.keyframes:
+            my_poses.append(g2n(frame.pose)) #log the poses
+            my_points.append(frame.transf_points)
+            my_points_basic.append(frame.points)
+            my_images.append(frame.img)
+
+        data = {}
+        data["poses"] = my_poses
+        data["points_t"] = my_points
+        data["points"] = my_points_basic
+        data["images"] = my_images
+
+        #save the config
+        with open('/home/jake/Desktop/holoocean_bags/scrape/'
+                                        + str(self.run)
+                                        + '.pickle', 'wb') as handle:
+            pickle.dump(data,handle)
+
+    def handle_sonar_msg(self, sonar_msg:OculusPing) -> np.array:
+        """Decode a sonar image, converting it to a numpy array
+
+        Args:
+            sonar_msg (OculusPing): the incoming sonar message
+
+        Returns:
+            np.array: sonar message as numpy array
+        """
+
+        img = np.frombuffer(sonar_msg.ping.data,np.uint8)
+        img = np.array(cv2.imdecode(img,cv2.IMREAD_COLOR)).astype(np.uint8)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return img
 
     @add_lock
     def sonar_callback(self, ping:OculusPing)->None:
@@ -144,13 +195,14 @@ class SLAMNode(SLAM):
         self.sonar_sub.unregister()
 
     @add_lock
-    def SLAM_callback(self, feature_msg:PointCloud2, odom_msg:Odometry)->None:
+    def SLAM_callback(self, feature_msg:PointCloud2, odom_msg:Odometry, sonar_msg:OculusPing)->None:
         """SLAM call back. Subscibes to the feature msg point cloud and odom msg
             Handles the whole SLAM system and publishes map, poses and constraints
 
         Args:
             feature_msg (PointCloud2): the incoming sonar point cloud
             odom_msg (Odometry): the incoming DVL/IMU state estimate
+            sonar_msg (OculusPing): the raw sonar message that created the feature_msg
         """
 
         #aquire the lock 
@@ -191,6 +243,7 @@ class SLAMNode(SLAM):
 
             #add the point cloud to the frame
             frame.points = points
+            frame.img = self.handle_sonar_msg(sonar_msg)
 
             #perform seqential scan matching
             #if this is the first frame do not

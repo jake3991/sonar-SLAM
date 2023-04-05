@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
+from bruce_slam.utils import io
 from bruce_slam.utils.io import *
+from bruce_slam.utils.topics import *
 from bruce_slam.slam_ros import SLAMNode
 
 def offline(args)->None:
@@ -17,7 +19,7 @@ def offline(args)->None:
     from feature_extraction_node import FeatureExtraction
     from gyro_node import GyroFilter
     from mapping_node import MappingNode
-    from bruce_slam.utils import io
+    
 
     # set some params
     io.offline = True
@@ -34,6 +36,7 @@ def offline(args)->None:
     """mp_node = MappingNode()
     mp_node.init_node(SLAM_NS + "mapping/")"""
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
+    shutdown_pub = rospy.Publisher("shutdown", Clock, queue_size=1)
 
     # loop over the entire rosbag
     for topic, msg in read_bag(args.file, args.start, args.duration, progress=True):
@@ -62,6 +65,8 @@ def offline(args)->None:
 
             # Publish map to world so we can visualize all in a z-down frame in rviz.
             node.tf.sendTransform((0, 0, 0), [1, 0, 0, 0], msg.header.stamp, "map", "world")
+
+    shutdown_pub.publish(Clock())
     
 
 if __name__ == "__main__":

@@ -117,8 +117,8 @@ class DeadReckoningNode(object):
 		#check the delay between the depth message and the DVL
 		dd_delay = (depth_msg.header.stamp - dvl_msg.header.stamp).to_sec()
 		#print(dd_delay)
-		if abs(dd_delay) > 1.0:
-			logdebug("Missing depth message for {}".format(dd_delay))
+		'''if abs(dd_delay) > 1.0:
+			logdebug("Missing depth message for {}".format(dd_delay))'''
 
 		#convert the imu message from msg to gtsam rotation object
 		rot = r2g(imu_msg.orientation)
