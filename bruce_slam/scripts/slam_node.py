@@ -3,6 +3,7 @@
 import rospy
 from bruce_slam.utils.io import *
 from bruce_slam.slam_ros import SLAMNode
+from bruce_slam.utils.topics import *
 
 def offline(args)->None:
     """run the SLAM system offline
@@ -50,7 +51,7 @@ def offline(args)->None:
             dead_reckoning_node.dvl_sub.callback(msg)
         elif topic == DEPTH_TOPIC:
             dead_reckoning_node.depth_sub.callback(msg)
-        elif topic == SONAR_TOPIC:
+        elif topic == SONAR_TOPIC or SONAR_TOPIC_UNCOMPRESSED:
             feature_extraction_node.sonar_sub.callback(msg)
         elif topic == GYRO_TOPIC:
             gyro_node.gyro_sub.callback(msg)
