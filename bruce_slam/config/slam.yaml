@@ -25,7 +25,7 @@ ssm:
 
 # Non-sequential scan matching
 nssm:
-  enable: True # is this module enabled?
+  enable: False # is this module enabled?
   min_st_sep: 8 # the size of the exclusion zone around the most recent keyframe
   min_points: 40 #min number of points
   max_translation: 10.0 # max translation allowed
@@ -35,7 +35,7 @@ nssm:
 
 # the PCM params for rejecting outlier loop closures
 pcm_queue_size: 5 # the sliding window size for PCM
-min_pcm: 2 # the min number of pairwise consistent loop closures
+min_pcm: 4 # the min number of pairwise consistent loop closures
 
 # TODO remove this param
 # Number of samples to compute the probability of

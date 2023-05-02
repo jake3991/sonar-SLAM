@@ -28,6 +28,9 @@
     <group ns="bruce" if="$(eval arg('file') == '')">
         <group ns="slam">
 
+            <!-- start stereo sonar-->
+            <include file="$(find stereo_sonar)/launch/stereoSonar.launch"/>
+
             <!-- start the gyro intergration node if we are not using the kalman filer -->
             <node if="$(eval kalman_dead_reckoning == false)"  pkg="bruce_slam" name="gyro_fusion" type="gyro_node.py" output="screen">
                 <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml"/>

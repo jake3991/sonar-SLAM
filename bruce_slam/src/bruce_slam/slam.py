@@ -115,6 +115,8 @@ class SLAM(object):
         self.save_fig = False
         self.save_data = False
 
+        self.factors = []
+
     @property
     def current_keyframe(self) -> Keyframe:
         """Get the current keyframe from the SLAM solution
@@ -225,6 +227,78 @@ class SLAM(object):
         """
 
         return self.sample_pose(self.current_keyframe.pose, self.current_keyframe.cov)
+
+    def build_submap(self) -> None:
+        """Build the submap for the 2nd most recent keyframe. We have aggragateed all the points from the sonar
+        fusion system, here we register them in a local frame, this keyframe. Voxel downsampling is applied as a memory
+        saving tool.
+        """
+
+        # start_time = time.time()
+        index = len(self.keyframes) - 2
+        if index < 0:
+            return
+
+        # loop over all the point clouds and their poses
+        # we are registering them in the local frame, relative to the keyframe at index as above
+        for cloud, pose3 in zip(
+            self.keyframes[index].sonar_fusion_clouds,
+            self.keyframes[index].odom_tranforms,
+        ):
+
+            # get the pose relative to the keyframes pose
+            pose = pose223(self.keyframes[index].dr_pose.between(pose322(pose3)))
+
+            # get a pose that contains the [x,y,yaw] relative the the keyframe
+            # and the [roll,pitch,depth] from dead reckoning
+            # this will correct the cloud to be relative to the keyframe, but apply any
+            # measurnments that have an absolute reference
+            arr = np.array(
+                [
+                    pose.x(),
+                    pose.y(),
+                    pose3.z(),
+                    pose3.rotation().roll(),
+                    pose3.rotation().pitch(),
+                    pose.rotation().yaw(),
+                ]
+            )
+            pose3 = n2g(arr, "Pose3")
+
+            # convert the pose to matrix format
+            H = pose3.matrix().astype(np.float32)
+
+            # rotate and translate to the local frame
+            cloud = cloud.dot(H[:3, :3].T) + H[:3, 3]
+
+            # log the points into the submap
+            if self.keyframes[index].submap_3D is None:
+                self.keyframes[index].submap_3D = np.array(cloud)
+            else:
+                self.keyframes[index].submap_3D = np.row_stack(
+                    (self.keyframes[index].submap_3D, cloud)
+                )
+
+        # perform some voxel downsampling
+        if self.keyframes[index].submap_3D is not None:
+            '''self.keyframes[index].submap_3D = pcl.downsample(
+                self.keyframes[index].submap_3D, self.point_resolution
+            )
+            self.keyframes[index].submap_3D = pcl.remove_outlier(
+                self.keyframes[index].submap_3D, 1, 5
+            )'''
+
+            # remove any points above the surface
+            #self.keyframes[index].submap_3D = self.keyframes[index].submap_3D[
+            #    self.keyframes[index].submap_3D[:, 2] >= 0
+            #]
+
+            # clear some data structures to save memory
+            (
+                self.keyframes[index].sonar_fusion_clouds,
+                self.keyframes[index].odom_tranforms,
+            ) = ([], [])
+
 
     def get_points(
         self, frames: list = None, ref_frame: Any = None, return_keys: bool = False
@@ -450,6 +524,8 @@ class SLAM(object):
         factor = gtsam.BetweenFactorPose2(
             X(self.current_key - 1), X(self.current_key), dr_odom, self.odom_model
         )
+        # self.factors[len(self.keyframes)-1].append(factor)
+        print(factor)
         self.graph.add(factor)
         self.values.insert(X(self.current_key), keyframe.pose)
 
@@ -1123,6 +1199,8 @@ class SLAM(object):
                     else:
                         icp_odom_model = self.icp_odom_model
 
+                    # icp_odom_model = self.create_robust_full_noise_model(ret2.cov)
+
                     # build the factor and add it to the graph
                     factor = gtsam.BetweenFactorPose2(
                         X(ret2.target_key),
@@ -1130,6 +1208,7 @@ class SLAM(object):
                         ret2.estimated_transform,
                         icp_odom_model,
                     )
+                    # Cauchy here
                     self.graph.add(factor)
                     self.keyframes[ret2.source_key].constraints.append(
                         (ret2.target_key, ret2.estimated_transform)

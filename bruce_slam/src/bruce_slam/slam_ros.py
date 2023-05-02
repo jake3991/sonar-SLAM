@@ -9,7 +9,8 @@ from rosgraph_msgs.msg import Clock
 from message_filters import  Subscriber
 from sensor_msgs.msg import PointCloud2
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import PoseWithCovarianceStamped
+from scipy.spatial.transform import Rotation
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from message_filters import ApproximateTimeSynchronizer
 
 # bruce imports
@@ -90,11 +91,13 @@ class SLAMNode(SLAM):
         self.feature_sub = Subscriber(SONAR_FEATURE_TOPIC, PointCloud2)
         self.odom_sub = Subscriber(LOCALIZATION_ODOM_TOPIC, Odometry)
         self.sonar_img_sub = Subscriber("sonar_repeater", OculusPing)
+        self.ground_truth_sub = Subscriber("/pose_true",PoseStamped)
         self.shutdown_sub = rospy.Subscriber("shutdown",Clock,callback=self.log_data)
-
+        self.sonar_fusion_sub = rospy.Subscriber("SonarCloud", PointCloud2,self.sonar_fusion_callback,queue_size=1000)
+        
         #define the sync policy
         self.time_sync = ApproximateTimeSynchronizer(
-            [self.feature_sub, self.odom_sub, self.sonar_img_sub ], 20, 
+            [self.feature_sub, self.odom_sub, self.sonar_img_sub, self.ground_truth_sub], 20, 
             self.feature_odom_sync_max_delay, allow_headerless = False)
 
         #register the callback in the sync policy
@@ -118,6 +121,10 @@ class SLAMNode(SLAM):
         #point cloud publisher topic
         self.cloud_pub = rospy.Publisher(
             SLAM_CLOUD_TOPIC, PointCloud2, queue_size=1, latch=True)
+        
+        #point cloud publisher topic
+        self.submap_pub = rospy.Publisher(
+                    "submaps", PointCloud2, queue_size=1, latch=True)
 
         #tf broadcaster to show pose
         self.tf = tf.TransformBroadcaster()
@@ -128,6 +135,9 @@ class SLAMNode(SLAM):
         #get the ICP configuration from the yaml fukle
         icp_config = rospy.get_param(ns + "icp_config")
         self.icp.loadFromYaml(icp_config)
+
+        # tf listener
+        self.listener = tf.TransformListener()
         
         # define the robot ID this is not used here, extended in multi-robot SLAM
         self.rov_id = ""
@@ -149,17 +159,23 @@ class SLAMNode(SLAM):
         my_points = []
         my_points_basic = []
         my_images = []
+        true_poses = []
+        time_stamps = []
         for frame in self.keyframes:
             my_poses.append(g2n(frame.pose)) #log the poses
             my_points.append(frame.transf_points)
             my_points_basic.append(frame.points)
             my_images.append(frame.img)
+            true_poses.append(frame.pose_true)
+            time_stamps.append(frame.time)
 
         data = {}
         data["poses"] = my_poses
         data["points_t"] = my_points
         data["points"] = my_points_basic
         data["images"] = my_images
+        data["true_poses"] = true_poses
+        data["time_stamps"] = time_stamps
 
         #save the config
         with open('/home/jake/Desktop/holoocean_bags/scrape/'
@@ -193,9 +209,47 @@ class SLAMNode(SLAM):
         
         self.oculus.configure(ping)
         self.sonar_sub.unregister()
+    
+    def sonar_fusion_callback(self, cloud_msg: PointCloud2) -> None:
+        """Handle the incoming point cloud from the orthoganal sonar fusion system.
+        We also lookup the odom transform to we can register this cloud later.
+        Args:
+            cloud_msg (PointCloud2): the point cloud from sonar fusion node
+        """
+
+        # check that we have init the keyframes
+        # make sure that this cloud happened after or at the same time as the keyframe
+        # we are about to log it to. 
+        if self.keyframes: #and cloud_msg.header.stamp.secs >= self.keyframes[-1].time.secs:
+
+            # decode the cloud message and fix the axis
+            cloud_np = r2n(cloud_msg)
+            cloud_np = np.c_[cloud_np[:,0] , -1 *  cloud_np[:,2], cloud_np[:,1]]
+
+            try:
+
+                # pull the transform from the timestamp of the incoming cloud message
+                (trans,rot) = self.listener.lookupTransform('map', 'dead_reckoning', cloud_msg.header.stamp)
+
+                #parse the transform
+                roll,pitch,yaw = Rotation.from_quat(rot).as_euler("xyz")
+                x,y,z = trans
+
+                #package as a GTSAM pose
+                pose = n2g([x,y,z,roll-1.5708,pitch,yaw],"Pose3")
+                pose = pose.compose(gtsam.Pose3(gtsam.Pose2(0.35,0,0)))
+
+                #log the cloud and transform into the system
+                self.keyframes[-1].odom_tranforms.append(pose)
+                self.keyframes[-1].sonar_fusion_clouds.append(cloud_np)
+
+            # on exception release the lock and return the callback
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                print("timeout")
+                return 
 
     @add_lock
-    def SLAM_callback(self, feature_msg:PointCloud2, odom_msg:Odometry, sonar_msg:OculusPing)->None:
+    def SLAM_callback(self, feature_msg:PointCloud2, odom_msg:Odometry, sonar_msg:OculusPing, pose_true:PoseStamped)->None:
         """SLAM call back. Subscibes to the feature msg point cloud and odom msg
             Handles the whole SLAM system and publishes map, poses and constraints
 
@@ -203,6 +257,7 @@ class SLAMNode(SLAM):
             feature_msg (PointCloud2): the incoming sonar point cloud
             odom_msg (Odometry): the incoming DVL/IMU state estimate
             sonar_msg (OculusPing): the raw sonar message that created the feature_msg
+            pose_true (PoseStamped): the true pose from the simulator
         """
 
         #aquire the lock 
@@ -244,6 +299,8 @@ class SLAMNode(SLAM):
             #add the point cloud to the frame
             frame.points = points
             frame.img = self.handle_sonar_msg(sonar_msg)
+            x,y,_,_,_,t = g2n(r2g(pose_true.pose))
+            frame.pose_true = np.array([x,y,t])
 
             #perform seqential scan matching
             #if this is the first frame do not
@@ -259,6 +316,8 @@ class SLAMNode(SLAM):
             #nonsequential scan matching is True (a loop closure occured) update graph again
             if self.nssm_params.enable  and self.add_nonsequential_scan_matching():
                 self.update_factor_graph()
+
+            self.build_submap()
             
         #update current time step and publish the topics
         self.current_frame = frame
@@ -277,6 +336,40 @@ class SLAMNode(SLAM):
             self.publish_trajectory()
             self.publish_constraint()
             self.publish_point_cloud()
+            self.publish_submaps()
+
+    def publish_submaps(self)->None:
+        """Pull the submaps from each keyframe and publish them all as one pointcloud message.
+        """
+
+        # container for the output, all the submaps in our system
+        all_submaps = []
+        
+        # loop over each keyframe
+        for index in range(len(self.keyframes)):
+
+            # pull the submap and labels
+            submap = self.keyframes[index].submap_3D
+            
+            # guard against a non map
+            if submap is not None:
+
+                # pull the keyframe pose, note this pose is only x,y,theta
+                pose = pose223(self.keyframes[index].pose)
+                #pose = self.keyframes[index].pose3
+
+                # register the submap in the global frame
+                H = pose.matrix().astype(np.float32)
+                submap = submap.dot(H[:3, :3].T) + H[:3, 3]
+
+                # add this submap
+                all_submaps.append(submap)
+
+        # package and publish
+        if len(all_submaps) > 0:
+            msg = n2r(np.concatenate(all_submaps), "PointCloudXYZ")
+            msg.header.frame_id = "map"
+            self.submap_pub.publish(msg)
 
     def publish_pose(self)->None:
         """Append dead reckoning from Localization to SLAM estimate to achieve realtime TF.

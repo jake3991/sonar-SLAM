@@ -97,6 +97,7 @@ class DeadReckoningNode(object):
 			self.ts.registerCallback(self.callback)
 
 		self.tf = tf.TransformBroadcaster()
+		self.mean = 0
 
 		loginfo("Localization node is initialized")
 
@@ -130,12 +131,13 @@ class DeadReckoningNode(object):
 
 		# Get a rotation matrix
 		# if use_gyro has the same value in Kalman and DeadReck, use this line
-		rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
+		self.mean += np.random.normal(0,0.002)
+		rot = gtsam.Rot3.Ypr(np.random.normal(self.mean,0.01)+rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 		# if use_gyro = True in Kalman and use_gyro = False in DeadReck, use this line:
 		# rot = gtsam.Rot3.Ypr(rot.yaw()-self.imu_yaw0, rot.pitch(), np.radians(90)+rot.roll())
 
 		# parse the DVL message into an array of velocites
-		vel = np.array([dvl_msg.velocity.x, dvl_msg.velocity.y, dvl_msg.velocity.z])
+		vel = np.array([dvl_msg.velocity.x+np.random.normal(0,0.002), dvl_msg.velocity.y+np.random.normal(0,0.002), dvl_msg.velocity.z])
 
 		# package the odom message and publish it
 		self.send_odometry(vel,rot,dvl_msg.header.stamp,depth_msg.depth)
@@ -307,6 +309,16 @@ class DeadReckoningNode(object):
 		self.tf.sendTransform(
 			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link", "odom"
 		)
+
+		self.tf.sendTransform(
+			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link_dead_reckoning", "map"
+		)
+
+		# send a transform for the submapping system
+		self.tf.sendTransform(
+			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "dead_reckoning", "map"
+		)
+		
 		if publish_traj:
 			traj = np.array([g2n(pose) for _, pose in self.keyframes])
 			traj_msg = ros_colorline_trajectory(traj)

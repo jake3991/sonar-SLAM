@@ -19,6 +19,7 @@ def offline(args)->None:
     from feature_extraction_node import FeatureExtraction
     from gyro_node import GyroFilter
     from mapping_node import MappingNode
+    from geometry_msgs.msg import PoseStamped
     
 
     # set some params
@@ -37,6 +38,7 @@ def offline(args)->None:
     mp_node.init_node(SLAM_NS + "mapping/")"""
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
     shutdown_pub = rospy.Publisher("shutdown", Clock, queue_size=1)
+    true_pose_pub = rospy.Publisher("/pose_true", PoseStamped, queue_size=100)
 
     # loop over the entire rosbag
     for topic, msg in read_bag(args.file, args.start, args.duration, progress=True):
@@ -57,6 +59,9 @@ def offline(args)->None:
             feature_extraction_node.sonar_sub.callback(msg)
         elif topic == GYRO_TOPIC:
             gyro_node.gyro_sub.callback(msg)
+        elif topic == "/pose_true":
+            true_pose_pub.publish(msg)
+            
 
         # use the IMU to drive the clock
         if topic == IMU_TOPIC or topic == IMU_TOPIC_MK_II:

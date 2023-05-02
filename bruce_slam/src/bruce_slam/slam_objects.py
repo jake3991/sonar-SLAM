@@ -116,7 +116,7 @@ class Keyframe(object):
         self.vertical_images = []
         self.horizontal_images = []
 
-        self.poseTrue = None  # record the true pose from gazebo, simulation only
+        self.pose_true = None  # record the true pose from gazebo, simulation only
 
         self.sub_frames = []
 
@@ -134,6 +134,9 @@ class Keyframe(object):
         self.scan_match_prediction_status = False
         self.scan_match_eig_max = None
         self.bits = None
+        self.odom_tranforms = [] # list to contain the submap for this keyframe
+        self.sonar_fusion_clouds = []
+        self.submap_3D = None
 
     def update(self, new_pose: gtsam.Pose2, new_cov: np.array = None) -> None:
         """Update a keyframe following a SLAM update, pass in the new pose and covariance
