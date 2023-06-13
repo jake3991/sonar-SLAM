@@ -49,6 +49,10 @@ catkin-tools
 - clone this repo into your catkin workspace
 - clone git clone https://github.com/ethz-asl/libnabo.git into your catkin workspace
 - clone https://github.com/ethz-asl/libpointmatcher.git into your catkin workspace
+- Make sure to use our specific tested version of libpointmatcher by using the following command in the libpointmatcher folder
+```
+git checkout d478ef2eb33894d5f1fe84d8c62cec2fc6da818f
+```
 - clone https://github.com/jake3991/Argonaut.git into your catkin workspace
 - build your workspace with catkin build NOT catkin_make
 
