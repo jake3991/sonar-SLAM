@@ -174,6 +174,27 @@ class FeatureExtraction(object):
         self.map_y = np.asarray(r / self.res, dtype=np.float32)
         self.map_x = np.asarray(f_bearings(b), dtype=np.float32)
 
+    def extract_line_scan(self,peaks: np.array) -> np.array:
+        """Get a linescan from a downward looking sonar
+
+        Args:
+            peaks (np.array): the cfar image in
+
+        Returns:
+            np.array: the line scan image
+        """
+
+        # extract the first contact in each column 
+        peaks_rot = np.rot90(peaks) # rotate the peaks to we can work with columns 
+        blank = np.zeros_like(peaks_rot) # make a blank image copy
+        for i,col in enumerate(peaks_rot): # loop
+            for j, val in enumerate(col):
+                if val != 0: # if we find a nonzero value, log into blank and break
+                    blank[i][j] = 255
+                    break
+
+        return np.rot90(blank,3)
+
     def publish_features(self, ping, points):
         '''Publish the feature message using the provided parameters in an OculusPing message
         ping: OculusPing message
@@ -181,7 +202,8 @@ class FeatureExtraction(object):
         '''
 
         #shift the axis
-        points = np.c_[points[:,0],np.zeros(len(points)),  points[:,1]]
+        points = np.c_[np.zeros(len(points)),points[:,0],points[:,1]]
+        points = points[points[:,1] <= 1.8]
 
         #convert to a pointcloud
         feature_msg = n2r(points, "PointCloudXYZ")
@@ -224,14 +246,15 @@ class FeatureExtraction(object):
         # Detect targets and check against threshold using CFAR (in polar coordinates)
         peaks = self.detector.detect(img, self.alg)
         peaks &= img > self.threshold
-
+    
+        line_scan = self.extract_line_scan(peaks)
         vis_img = cv2.remap(img, self.map_x, self.map_y, cv2.INTER_LINEAR)
         vis_img = cv2.applyColorMap(vis_img, 2)
         self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
 
         #convert to cartisian
-        peaks = cv2.remap(peaks, self.map_x, self.map_y, cv2.INTER_LINEAR)        
-        locs = np.c_[np.nonzero(peaks)]
+        line_scan = cv2.remap(line_scan, self.map_x, self.map_y, cv2.INTER_LINEAR)        
+        locs = np.c_[np.nonzero(line_scan)]
 
         #convert from image coords to meters
         x = locs[:,1] - self.cols / 2.
@@ -240,7 +263,7 @@ class FeatureExtraction(object):
         points = np.column_stack((y,x))
 
         #filter the cloud using PCL
-        if len(points) and self.resolution > 0:
+        '''if len(points) and self.resolution > 0:
             points = pcl.downsample(points, self.resolution)
 
         #remove some outliars
@@ -248,7 +271,7 @@ class FeatureExtraction(object):
             # points = pcl.density_filter(points, 5, self.min_density, 1000)
             points = pcl.remove_outlier(
                 points, self.outlier_filter_radius, self.outlier_filter_min_points
-            )
+            )'''
 
         #publish the feature message
         self.publish_features(sonar_msg, points)

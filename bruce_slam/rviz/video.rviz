@@ -16,20 +16,23 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: Planer Map
+    SyncSource: Feature Extraction
   - Class: rviz/Displays
     Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Feature Extraction1
+        - /Feature Extraction1/Autocompute Value Bounds1
         - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 904
+    Tree Height: 542
   - Class: rviz/Displays
     Help Height: 0
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Feature Extraction1/Autocompute Value Bounds1
       Splitter Ratio: 0.5
     Tree Height: 441
 Preferences:
@@ -95,8 +98,8 @@ Visualization Manager:
       Use rainbow: true
       Value: false
     - Alpha: 1
-      Axes Length: 3
-      Axes Radius: 0.5
+      Axes Length: 0.5
+      Axes Radius: 0.10000000149011612
       Class: rviz/PoseWithCovariance
       Color: 255; 25; 0
       Covariance:
@@ -114,7 +117,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: false
-      Enabled: false
+      Enabled: true
       Head Length: 0.30000001192092896
       Head Radius: 0.10000000149011612
       Name: Pose
@@ -124,7 +127,7 @@ Visualization Manager:
       Shape: Axes
       Topic: /bruce/slam/slam/pose
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -137,7 +140,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -152,7 +155,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Class: rviz/Marker
       Enabled: false
       Marker Topic: /bruce/slam/slam/constraint
@@ -164,16 +167,16 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
+        Max Value: 1.7999999523162842
+        Min Value: 1
+        Value: false
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
       Color: 0; 255; 0
-      Color Transformer: FlatColor
-      Decay Time: 0
-      Enabled: false
+      Color Transformer: AxisColor
+      Decay Time: 10000
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -182,16 +185,16 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.25
+      Size (m): 0.009999999776482582
       Style: Flat Squares
       Topic: /bruce/slam/feature_extraction/feature
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/Image
       Enabled: false
-      Image Topic: /rexrov/forward_sonar_horiz/raw_sonar
+      Image Topic: /bruce/slam/feature_extraction/feature_img
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -202,8 +205,8 @@ Visualization Manager:
       Unreliable: false
       Value: false
     - Class: rviz/Image
-      Enabled: false
-      Image Topic: /rexrov/forward_sonar_vert/raw_sonar
+      Enabled: true
+      Image Topic: /bruce/slam/feature_extraction/feature_img
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -212,7 +215,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -225,7 +228,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -234,18 +237,18 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.25
+      Size (m): 0.05000000074505806
       Style: Flat Squares
       Topic: /bruce/slam/SonarCloud
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 7.547527313232422
-        Min Value: 3.0333700124174356e-05
+        Max Value: 1.292750358581543
+        Min Value: 7.980843292898498e-06
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -253,7 +256,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: AxisColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -268,7 +271,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: false
       Autocompute Value Bounds:
@@ -311,7 +314,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: FlatColor
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -326,7 +329,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -356,22 +359,10 @@ Visualization Manager:
       Use rainbow: true
       Value: false
     - Class: rviz/TF
-      Enabled: true
+      Enabled: false
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_link:
-          Value: true
-        base_link_dead_reckoning:
-          Value: false
-        dead_reckoning:
-          Value: false
-        map:
-          Value: true
-        sonar_link:
-          Value: true
-        world:
-          Value: true
       Marker Alpha: 1
       Marker Scale: 5
       Name: TF
@@ -379,17 +370,9 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        world:
-          map:
-            base_link:
-              sonar_link:
-                {}
-            base_link_dead_reckoning:
-              {}
-            dead_reckoning:
-              {}
+        {}
       Update Interval: 0
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -418,7 +401,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 67.53881072998047
+      Distance: 6.588470458984375
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -426,27 +409,27 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 23.582927703857422
-        Y: 3.0214550495147705
-        Z: 10.07547378540039
+        X: 5.053647994995117
+        Y: 0.9962847828865051
+        Z: 1.9876552820205688
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: true
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1647968292236328
+      Pitch: 0.6497971415519714
       Target Frame: <Fixed Frame>
-      Yaw: 2.078372001647949
+      Yaw: 1.843425989151001
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: true
   Height: 1016
   Hide Left Dock: false
-  Hide Right Dock: false
+  Hide Right Dock: true
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001c600000271fc020000000bfb0000001200530065006c0065006300740069006f006e000000015b0000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000001a004600650061007400750072006500200049006d006100670065000000014e000000910000000000000000fb0000001a004600650061007400750072006500200049006d0061006700650000000739000000ed0000000000000000fb00000014004c0069006e0065002000670072006100700068000000016a000001210000000000000000fb00000014004c0069006e0065002000670072006100700068000000016a0000027100000000000000000000000100000156000003c5fc0200000004fb000000100044006900730070006c0061007900730100000016000003c5000000c900fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000000000000402000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b2000000000000000000000002000007380000014efc0100000009fb0000000a0049006d00610067006500000000000000039a0000005e00fffffffb0000000a0049006d0061006700650000000000000007380000005e00fffffffb0000000a0049006d0061006700650100000000000007380000000000000000fb0000000a0049006d0061006700650100000000000003680000000000000000fb0000000a0049006d006100670065010000036e0000026e0000000000000000fb0000000a0049006d0061006700650100000000000003100000000000000000fb0000000a0049006d0061006700650100000316000002c60000000000000000fb000000100044006900730070006c00610079007300000005e2000001560000015600fffffffb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000eb900000040fc0100000002fb0000000800540069006d0065000000000000000eb90000041800fffffffb0000000800540069006d00650100000000000004500000000000000000000005dc000003c500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730000000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001c60000025bfc020000000bfb0000001200530065006c0065006300740069006f006e00000001800000025b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000001a004600650061007400750072006500200049006d006100670065000000014e000000910000000000000000fb0000001a004600650061007400750072006500200049006d0061006700650000000739000000ed0000000000000000fb00000014004c0069006e0065002000670072006100700068000000016a000001210000000000000000fb00000014004c0069006e0065002000670072006100700068000000016a00000271000000000000000000000001000001560000025bfc0200000004fb000000100044006900730070006c00610079007300000001800000025b000000c900fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000000000000402000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b2000000000000000000000002000007380000013dfc0100000009fb0000000a0049006d0061006700650100000000000007380000005e00fffffffb0000000a0049006d0061006700650000000000000007380000005e00fffffffb0000000a0049006d0061006700650100000000000007380000000000000000fb0000000a0049006d0061006700650100000000000003680000000000000000fb0000000a0049006d006100670065010000036e0000026e0000000000000000fb0000000a0049006d0061006700650100000000000003100000000000000000fb0000000a0049006d0061006700650100000316000002c60000000000000000fb000000100044006900730070006c00610079007300000005e2000001560000015600fffffffb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000eb900000040fc0100000002fb0000000800540069006d0065000000000000000eb90000041800fffffffb0000000800540069006d00650100000000000004500000000000000000000007380000025b00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:

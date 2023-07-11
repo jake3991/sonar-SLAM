@@ -14,4 +14,4 @@ use_gyro: False
 
 # which IMU driver are we using 1 is the heavy and 2 is heavy MKII
 # sample_data file is version 1
-imu_version: 1
+imu_version: 2
