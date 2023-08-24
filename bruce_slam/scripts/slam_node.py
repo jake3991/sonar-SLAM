@@ -18,9 +18,6 @@ def offline(args)->None:
     from feature_extraction_node import FeatureExtraction
     from bruce_slam.utils import io
 
-    from stereo_sonar.stereoSonarCartisian import stereoSonar
-    from baysian_mapping_node import BaysianMappingNode
-
     # set some params
     io.offline = True
     node.save_fig = False
@@ -31,14 +28,14 @@ def offline(args)->None:
     dead_reckoning_node.init_node(SLAM_NS + "localization/")
     feature_extraction_node = FeatureExtraction()
     feature_extraction_node.init_node(SLAM_NS + "feature_extraction/")
-    stereo_sonar_node = stereoSonar("")
+    '''stereo_sonar_node = stereoSonar("")
     stereo_sonar_node.scene = args.scene
     stereo_sonar_node.keyframe_translation = args.translation
     stereo_sonar_node.keyframe_rotation = np.radians(args.rotation)
     bayes_mapping_node = BaysianMappingNode()
     bayes_mapping_node.scene = args.scene 
     bayes_mapping_node.keyframe_translation = args.translation
-    bayes_mapping_node.keyframe_rotation = np.radians(args.rotation)
+    bayes_mapping_node.keyframe_rotation = np.radians(args.rotation)'''
     #bayes_mapping_node.vis_3D = False
     clock_pub = rospy.Publisher("/clock", Clock, queue_size=100)
 
@@ -60,11 +57,11 @@ def offline(args)->None:
         elif topic == SONAR_TOPIC:
             feature_extraction_node.sonar_sub.callback(msg)
 
-        if topic == SONAR_TOPIC:
+        '''if topic == SONAR_TOPIC:
             stereo_sonar_node.horizontalSonarSub.callback(msg)
             bayes_mapping_node.image_sub.callback(msg)
         elif topic == VERTICAL_SONAR_TOPIC:
-            stereo_sonar_node.verticalSonarSub.callback(msg)            
+            stereo_sonar_node.verticalSonarSub.callback(msg)  '''          
 
         # use the IMU to drive the clock
         if topic == IMU_TOPIC or topic == IMU_TOPIC_MK_II:

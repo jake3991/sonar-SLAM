@@ -76,9 +76,16 @@ class KalmanNode(object):
 		self.dvl_sub = rospy.Subscriber(DVL_TOPIC,DVL,callback=self.dvl_callback,queue_size=250)
 		self.depth_sub = rospy.Subscriber(DEPTH_TOPIC, Depth,callback=self.pressure_callback,queue_size=250)
 		self.odom_pub_kalman = rospy.Publisher(LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=250)
+		
+		self.odom_pub = rospy.Publisher(
+			LOCALIZATION_ODOM_TOPIC, Odometry, queue_size=10)
+
+		self.odom_pub_2 = rospy.Publisher(
+			LOCALIZATION_ODOM_TOPIC_II, Odometry, queue_size=10)
 
 		# define the transfor broadcaster
 		self.tf1 = tf.TransformBroadcaster()
+		self.tf = tf.TransformBroadcaster()
 
 		# if we are using the gyroscope set up the subscribers
 		if self.use_gyro:
@@ -224,7 +231,7 @@ class KalmanNode(object):
 		
 		header = rospy.Header()
 		header.stamp = t
-		header.frame_id = "odom"
+		header.frame_id = "map"
 		odom_msg = Odometry()
 		odom_msg.header = header
 		odom_msg.pose.pose = g2r(self.pose)
@@ -235,9 +242,16 @@ class KalmanNode(object):
 		odom_msg.twist.twist.angular.x = 0.
 		odom_msg.twist.twist.angular.y = 0.
 		odom_msg.twist.twist.angular.z = 0.
-		self.odom_pub_kalman.publish(odom_msg)
+		self.odom_pub.publish(odom_msg)
+		self.odom_pub_2.publish(odom_msg)
 
-		self.tf1.sendTransform(
-			(odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y, odom_msg.pose.pose.position.z),
-			(odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w),
-			header.stamp, "base_link", "odom")
+		p = odom_msg.pose.pose.position
+		q = odom_msg.pose.pose.orientation
+		self.tf.sendTransform(
+			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "base_link_dead_reckoning", "map"
+		)
+
+		# send a transform for the submapping system
+		self.tf.sendTransform(
+			(p.x, p.y, p.z), (q.x, q.y, q.z, q.w), header.stamp, "dead_reckoning", "map"
+		)

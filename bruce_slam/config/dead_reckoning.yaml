@@ -1,5 +1,5 @@
 # Localization node
-dvl_max_velocity: 0.5
+dvl_max_velocity: 0.9
 
 # [x y z roll pitch yaw]
 imu_pose: [0, 0, 0, deg(-90), 0, 0]  

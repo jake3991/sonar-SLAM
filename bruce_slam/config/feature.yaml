@@ -2,13 +2,13 @@
 CFAR:
   Ntc: 20 # number of training cells
   Ngc: 6 # number of guard cells
-  Pfa: 0.05 #false alarm rate
+  Pfa: 0.1 #false alarm rate
   rank: 10 # matrix rank
   alg: 'SOCA' # method of CFAR, see cfar.cpp for options. SOCA is best.
 
 # point cloud filtering params
 filter:
-  threshold: 80 # the min CFAR response to be added to the point cloud
+  threshold: 20 # the min CFAR response to be added to the point cloud
   resolution: 0.5 # voxel downsampling res
   radius: 1.0 # outlier rejection radius
   min_points: 5 # outlier rejection min points
