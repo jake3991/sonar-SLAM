@@ -188,11 +188,9 @@ class FeatureExtraction(object):
         peaks_rot = np.rot90(peaks) # rotate the peaks to we can work with columns 
         blank = np.zeros_like(peaks_rot) # make a blank image copy
         for i,col in enumerate(peaks_rot): # loop
-            for j, val in enumerate(col):
-                if val != 0: # if we find a nonzero value, log into blank and break
-                    blank[i][j] = 255
-                    break
-
+            j = np.argmax(col)
+            if peaks_rot[i][j] != 0:
+                blank[i][j] = 255
         return np.rot90(blank,3)
 
     def publish_features(self, ping, points):
@@ -203,7 +201,6 @@ class FeatureExtraction(object):
 
         #shift the axis
         points = np.c_[np.zeros(len(points)),points[:,0],-points[:,1]]
-        # points = points[points[:,1] <= 1.8]
 
         #convert to a pointcloud
         feature_msg = n2r(points, "PointCloudXYZ")
