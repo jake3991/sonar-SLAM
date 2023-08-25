@@ -115,6 +115,9 @@ class FeatureExtraction(object):
         self.radius = rospy.get_param(ns + "visualization/radius")
         self.color = rospy.get_param(ns + "visualization/color")
 
+        #mode, slam cloud or bathy cloud
+        self.feature_mode = rospy.get_param(ns + "feature_cloud")
+
         #sonar subsciber
         if self.compressed_images:
             self.sonar_sub = rospy.Subscriber(
@@ -244,8 +247,10 @@ class FeatureExtraction(object):
         peaks = self.detector.detect(img, self.alg)
         peaks &= img > self.threshold
     
+        # extract a line scan for the peaks image, only the closest return in each beam
         line_scan = self.extract_line_scan(peaks)
 
+        # create a vis image 
         vis_img = cv2.applyColorMap(img, 2)
         blank_img = cv2.applyColorMap(img, 2)
         for point in np.c_[np.nonzero(line_scan)]:
