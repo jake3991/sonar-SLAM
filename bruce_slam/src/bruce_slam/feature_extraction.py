@@ -246,15 +246,14 @@ class FeatureExtraction(object):
     
         line_scan = self.extract_line_scan(peaks)
 
-        '''vis_img = cv2.applyColorMap(img, 2)
+        vis_img = cv2.applyColorMap(img, 2)
         blank_img = cv2.applyColorMap(img, 2)
         for point in np.c_[np.nonzero(line_scan)]:
             cv2.circle(vis_img,(point[1],point[0]),3,(0,0,255),-1)
         vis_img = cv2.remap(vis_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
         blank_img = cv2.remap(blank_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
         vis_img = np.column_stack((blank_img,vis_img))
-
-        self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))'''
+        self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
 
         #convert to cartisian
         line_scan = cv2.remap(line_scan, self.map_x, self.map_y, cv2.INTER_LINEAR)        
