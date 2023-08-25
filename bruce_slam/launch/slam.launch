@@ -19,6 +19,7 @@
             <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>
             <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" ns="feature_extraction"/>
             <rosparam command="load" file="$(find stereo_sonar)/config/match.yaml" ns=""/>
+             <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml" ns="gyro"/>
             <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen"
                 args="--file $(arg file) --start=$(arg start) --duration=$(arg duration) --scene=$(arg scene) --rotation=$(arg rotation) --translation=$(arg translation)" required="$(arg kill)">
                 <rosparam command="load" file="$(find bruce_slam)/config/slam.yaml" subst_value="true"/>
@@ -32,6 +33,10 @@
     <!-- online mode -->
     <group ns="bruce" if="$(eval arg('file') == '')">
         <group ns="slam">
+
+            <node if="$(eval kalman_dead_reckoning == false)"  pkg="bruce_slam" name="gyro_fusion" type="gyro_node.py" output="screen">
+                <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml"/>
+            </node>
 
             <node pkg="bruce_slam" name="bayes_map" type="test_mapping_node.py" output="screen">
             </node>
