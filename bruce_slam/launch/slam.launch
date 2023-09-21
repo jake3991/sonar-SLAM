@@ -18,6 +18,7 @@
         
             <rosparam command="load" file="$(find bruce_slam)/config/dead_reckoning.yaml" ns="localization"/>
             <rosparam command="load" file="$(find bruce_slam)/config/feature.yaml" ns="feature_extraction"/>
+            <rosparam command="load" file="$(find bruce_slam)/config/bathy_feature.yaml" ns="bathy_feature_extraction"/>
             <rosparam command="load" file="$(find stereo_sonar)/config/match.yaml" ns=""/>
              <rosparam command="load" file="$(find bruce_slam)/config/gyro.yaml" ns="gyro"/>
             <node pkg="bruce_slam" name="slam" type="slam_node.py" output="screen"

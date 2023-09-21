@@ -1,5 +1,5 @@
 # how often to add keyframes, this can be varied but between 1 and 4 meters is best
-keyframe_duration: 1.0
+keyframe_duration: 5.0
 keyframe_translation: 2.0
 keyframe_rotation: deg(30)
 

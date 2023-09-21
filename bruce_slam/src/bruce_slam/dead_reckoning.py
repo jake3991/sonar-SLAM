@@ -3,12 +3,14 @@ import tf
 import rospy
 import gtsam
 import numpy as np
+import pickle
 
 # ros-python imports
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import PointCloud2, Imu, FluidPressure
 from message_filters import ApproximateTimeSynchronizer, Cache, Subscriber
 from geometry_msgs.msg import TwistWithCovarianceStamped
+from rosgraph_msgs.msg import Clock
 
 # import custom messages
 from kvh_gyro.msg import gyro as GyroMsg
@@ -73,6 +75,7 @@ class DeadReckoningNode(object):
 		self.gyro_sub = Subscriber(GYRO_INTEGRATION_TOPIC, Odometry)
 		self.depth_sub = Subscriber(DEPTH_TOPIC, Depth)
 		self.depth_cache = Cache(self.depth_sub, 20)
+		self.shut_down_sub = rospy.Subscriber("shutdown", Clock, self.shutdown_callback, queue_size=10)
 
 		if rospy.get_param(ns + "imu_version") == 1:
 			self.imu_sub = Subscriber(IMU_TOPIC, Imu)
@@ -104,8 +107,21 @@ class DeadReckoningNode(object):
 
 		self.tf = tf.TransformBroadcaster()
 
+		self.pose_log = []
+		self.pose_time_log = []
+	
+
 		loginfo("Localization node is initialized")
 
+
+	def shutdown_callback(self,msg):
+		data = {}
+		data["poses"] = self.pose_log
+		data["poses_time"] = self.pose_time_log
+		with open('/home/jake/Desktop/bathy/scraped_data/'
+										+ 'poses'
+										+ '.pickle', 'wb') as handle:
+			pickle.dump(data,handle)
 
 	def callback(self, imu_msg:Imu, dvl_msg:DVL)->None:
 		"""Handle the dead reckoning using the VN100 and DVL only. Fuse and publish an odometry message.
@@ -154,6 +170,7 @@ class DeadReckoningNode(object):
 			dvl_msg (DVL): the DVL message
 			gyro_msg (GyroMsg): the euler angles from the gyro
 		"""
+
 		# decode the gyro message
 		gyro_yaw = r2g(gyro_msg.pose.pose).rotation().yaw()
 
@@ -278,6 +295,9 @@ class DeadReckoningNode(object):
 		"""
 		if self.pose is None:
 			return
+		
+		self.pose_log.append(g2n(self.pose))
+		self.pose_time_log.append(self.prev_time)
 
 		header = rospy.Header()
 		header.stamp = self.prev_time

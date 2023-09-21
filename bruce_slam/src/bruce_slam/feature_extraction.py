@@ -5,6 +5,8 @@ import rospy
 from sensor_msgs.msg import PointCloud2, Image, CompressedImage
 import cv_bridge
 import ros_numpy
+from rosgraph_msgs.msg import Clock
+import pickle
 
 from bruce_slam.utils.io import *
 from bruce_slam.utils.topics import *
@@ -116,26 +118,48 @@ class FeatureExtraction(object):
         self.color = rospy.get_param(ns + "visualization/color")
 
         #mode, slam cloud or bathy cloud
-        self.feature_mode = rospy.get_param(ns + "feature_cloud")
+        self.feature_mode = rospy.get_param(ns + "feature_mode")
 
-        #sonar subsciber
-        if self.compressed_images:
+        self.points_log = []
+        self.time_log = []
+
+        self.shut_down_sub = rospy.Subscriber("shutdown", Clock, self.shutdown_callback, queue_size=10)
+
+        # define the sub and pub topics
+        if self.feature_mode == "bathy":
             self.sonar_sub = rospy.Subscriber(
-                SONAR_TOPIC, OculusPing, self.callback, queue_size=10)
+                VERTICAL_SONAR_TOPIC, OculusPing, self.callback, queue_size=10)
+            self.feature_pub = rospy.Publisher( # feature publish topic
+                BATHY_FEATURE_TOPIC, PointCloud2, queue_size=10)
+            self.feature_img_pub = rospy.Publisher( # vis publish topic
+                BATHY_FEATURE_IMG_TOPIC, Image, queue_size=10)
+            self.feature_img_pub.name
         else:
             self.sonar_sub = rospy.Subscriber(
-                SONAR_TOPIC_UNCOMPRESSED, OculusPingUncompressed, self.callback, queue_size=10)
-
-        #feature publish topic
-        self.feature_pub = rospy.Publisher(
-            SONAR_FEATURE_TOPIC, PointCloud2, queue_size=10)
-
-        #vis publish topic
-        self.feature_img_pub = rospy.Publisher(
-            SONAR_FEATURE_IMG_TOPIC, Image, queue_size=10)
+                SONAR_TOPIC, OculusPing, self.callback, queue_size=10)
+            self.feature_pub = rospy.Publisher( # feature publish topic
+                SONAR_FEATURE_TOPIC, PointCloud2, queue_size=10)
+            self.feature_img_pub = rospy.Publisher( # vis publish topic
+                SONAR_FEATURE_IMG_TOPIC, Image, queue_size=10)
 
         self.configure()
 
+    def shutdown_callback(self, msg):
+        """Log the data from this node
+
+        Args:
+            msg (Clock): a dummy message to run the callback
+        """
+        
+        data = {}
+        data["points"] = self.points_log
+        data["points_time"] = self.time_log
+        with open('/home/jake/Desktop/bathy/scraped_data/'
+                                        + 'points'
+                                        + '.pickle', 'wb') as handle:
+            pickle.dump(data,handle)
+        
+        
     def generate_map_xy(self, ping):
         '''Generate a mesh grid map for the sonar image, this enables converison to cartisian from the 
         source polar images
@@ -203,7 +227,14 @@ class FeatureExtraction(object):
         '''
 
         #shift the axis
-        points = np.c_[np.zeros(len(points)),points[:,0],-points[:,1]]
+        if self.feature_mode == "bathy":
+            points = np.c_[np.zeros(len(points)),points[:,0],-points[:,1]]
+            r = np.sqrt(points[:,0]**2 + points[:,1]**2)
+            points = points[r >= 5]
+            self.points_log.append(points)
+            self.time_log.append(ping.header.stamp)
+        else:
+            points = np.c_[points[:,0],np.zeros(len(points)),  points[:,1]]
 
         #convert to a pointcloud
         feature_msg = n2r(points, "PointCloudXYZ")
@@ -248,21 +279,38 @@ class FeatureExtraction(object):
         peaks &= img > self.threshold
     
         # extract a line scan for the peaks image, only the closest return in each beam
-        line_scan = self.extract_line_scan(peaks)
+        if self.feature_mode == "bathy":
+            line_scan = self.extract_line_scan(peaks)
 
-        # create a vis image 
-        vis_img = cv2.applyColorMap(img, 2)
-        blank_img = cv2.applyColorMap(img, 2)
-        for point in np.c_[np.nonzero(line_scan)]:
-            cv2.circle(vis_img,(point[1],point[0]),3,(0,0,255),-1)
-        vis_img = cv2.remap(vis_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
-        blank_img = cv2.remap(blank_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
-        vis_img = np.column_stack((blank_img,vis_img))
-        self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
+            # create a vis image 
+            vis_img = cv2.applyColorMap(img, 2)
+            blank_img = cv2.applyColorMap(img, 2)
+            for point in np.c_[np.nonzero(line_scan)]:
+                cv2.circle(vis_img,(point[1],point[0]),3,(0,0,255),-1)
+            vis_img = cv2.remap(vis_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
+            blank_img = cv2.remap(blank_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
+            vis_img = np.column_stack((np.flip(blank_img,1),np.flip(vis_img,1)))
+            self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
 
-        #convert to cartisian
-        line_scan = cv2.remap(line_scan, self.map_x, self.map_y, cv2.INTER_LINEAR)        
-        locs = np.c_[np.nonzero(line_scan)]
+            # extract the line scan
+            line_scan = cv2.remap(line_scan, self.map_x, self.map_y, cv2.INTER_LINEAR)        
+            locs = np.c_[np.nonzero(line_scan)]
+
+        else:
+
+            # create a vis image 
+            vis_img = cv2.applyColorMap(img, 2)
+            blank_img = cv2.applyColorMap(img, 2)
+            for point in np.c_[np.nonzero(peaks)]:
+                cv2.circle(vis_img,(point[1],point[0]),3,(0,0,255),-1)
+            vis_img = cv2.remap(vis_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
+            blank_img = cv2.remap(blank_img, self.map_x, self.map_y, cv2.INTER_LINEAR)
+            vis_img = np.column_stack((blank_img,vis_img))
+            self.feature_img_pub.publish(ros_numpy.image.numpy_to_image(vis_img, "bgr8"))
+
+            # extract the points
+            peaks = cv2.remap(peaks, self.map_x, self.map_y, cv2.INTER_LINEAR)     
+            locs = np.c_[np.nonzero(peaks)]
 
         #convert from image coords to meters    
         x = locs[:,1] - self.cols / 2.

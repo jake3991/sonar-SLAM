@@ -3,13 +3,13 @@
 
 
 # IMU driver : 1 is the heavy and 2 is heavy MKII
-imu_version: 1
+imu_version: 2
 
 # Define the roll offset, based on the config of the IMU
 # USMMA/SLB data: 180
 # SUNY/ICRA: 90
 # Newest vehicle: 90
-imu_offset: 180
+imu_offset: 90
 
 # Are we using the Gyro? True if there is the FOG sensor
 use_gyro: False

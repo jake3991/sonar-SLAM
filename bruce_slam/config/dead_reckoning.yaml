@@ -10,7 +10,7 @@ keyframe_translation: 4.0
 keyframe_rotation: deg(30)
 
 # should we use the FOG? Do not set to true if there is no FOG sensor. 
-use_gyro: False
+use_gyro: True
 
 # which IMU driver are we using 1 is the heavy and 2 is heavy MKII
 # sample_data file is version 1

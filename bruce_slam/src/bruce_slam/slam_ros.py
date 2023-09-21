@@ -12,6 +12,7 @@ from visualization_msgs.msg import Marker
 from scipy.spatial.transform import Rotation
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from message_filters import ApproximateTimeSynchronizer
+from rosgraph_msgs.msg import Clock
 
 # bruce imports
 from bruce_slam.utils.io import *
@@ -161,9 +162,43 @@ class SLAMNode(SLAM):
         self.submap_build_time = []
         self.vis_3D = True
 
+        self.shutdown_sub = rospy.Subscriber("shutdown",Clock,callback=self.log_data)
+
         #call the configure function
         self.configure()
         loginfo("SLAM node is initialized")
+
+    def log_data(self, msg) -> None:
+        """Log the SLAM data
+
+        Args:
+            msg (Clock): a dummy message to run this callback
+        """
+
+        #get my own SLAM results
+        my_poses = []
+        my_points = []
+        my_points_basic = []
+        my_images = []
+        true_poses = []
+        time_stamps = []
+        for frame in self.keyframes:
+            my_poses.append(g2n(frame.pose)) #log the poses
+            my_points.append(frame.transf_points)
+            my_points_basic.append(frame.points)
+            time_stamps.append(frame.time)
+
+        data = {}
+        data["poses"] = my_poses
+        data["points_t"] = my_points
+        data["points"] = my_points_basic
+        data["time_stamps"] = time_stamps
+
+        #save the config
+        with open('/home/jake/Desktop/bathy/scraped_data/'
+                                        + 'slam_data'
+                                        + '.pickle', 'wb') as handle:
+            pickle.dump(data,handle)
 
     @add_lock
     def sonar_callback(self, ping:OculusPing)->None:
